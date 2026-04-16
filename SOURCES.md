@@ -19,6 +19,7 @@
 - Variable meaning: median household income in the past 12 months
 - Exact API query used by the script:
   https://api.census.gov/data/2024/acs/acs1?get=NAME,B19013_001E&for=state:*
+- Checked-in snapshot derived from it: `data/census_acs_2024_B19013_001E_state.csv`
 - Local script consumer: `scripts/collect_and_regress.py`
 
 ## Transformations
@@ -28,7 +29,7 @@ The repository does not scrape arbitrary websites, estimate missing values, or i
 It performs these explicit transformations:
 
 1. Keep the checked-in BLS extract as the unionization input.
-2. Fetch the Census API response live.
+2. Keep a checked-in snapshot of the exact Census API values used by the analysis.
 3. Exclude the District of Columbia so the merged file covers exactly the 50 U.S. states.
 4. Join on the full state name.
 5. Sort the merged rows alphabetically by state.
@@ -37,4 +38,5 @@ It performs these explicit transformations:
 ## What is checked in
 
 - The BLS extract is checked in because the source site blocked automated shell retrieval from the environment used during assembly.
+- The Census snapshot is checked in so reviewers can reproduce the analysis offline and compare exactly against committed outputs.
 - The processed CSV and report outputs are checked in so reviewers can compare regenerated outputs against committed outputs.

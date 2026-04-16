@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a self-contained HTML report from the processed dataset.
+"""Build a self-contained single-file HTML report from the processed dataset.
 
 This script does not collect or transform source data. It reads:
 - `data/us_states_union_income_2024.csv`
@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 from html import escape
 from pathlib import Path
 
@@ -24,6 +25,14 @@ DATA_CSV = ROOT / "data" / "us_states_union_income_2024.csv"
 REGRESSION_JSON = ROOT / "results" / "union_income_regression_2024.json"
 REPORT_HTML = ROOT / "results" / "union_income_visual_report.html"
 REPO_URL = "https://github.com/SamuelSchlesinger/us-state-union-income-analysis"
+REPO_REF = os.environ.get("REPO_REF", "main")
+REPO_BLOB_BASE = f"{REPO_URL}/blob/{REPO_REF}"
+AUDIT_DOC_URL = f"{REPO_BLOB_BASE}/AUDIT.md"
+SOURCES_DOC_URL = f"{REPO_BLOB_BASE}/SOURCES.md"
+SHA256SUMS_URL = f"{REPO_BLOB_BASE}/SHA256SUMS"
+AUDIT_MANIFEST_URL = (
+    f"{REPO_BLOB_BASE}/results/union_income_audit_manifest_2024.json"
+)
 BLS_SOURCE_URL = (
     "https://www.bls.gov/opub/ted/2025/"
     "union-membership-rates-highest-in-hawaii-and-new-york-lowest-"
@@ -459,9 +468,6 @@ def build_html(
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Unionization and Income by State, 2024</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
   <style>
     :root {{
       --bg: #f6f0e6;
@@ -481,7 +487,7 @@ def build_html(
 
     body {{
       margin: 0;
-      font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
       color: var(--ink);
       background:
         radial-gradient(circle at top left, rgba(255,255,255,0.72), transparent 32%),
@@ -538,7 +544,7 @@ def build_html(
 
     h1 {{
       margin: 0;
-      font-family: "Instrument Serif", Georgia, serif;
+      font-family: Georgia, "Times New Roman", serif;
       font-size: clamp(2.8rem, 5.4vw, 5rem);
       line-height: 0.94;
       max-width: 10.5ch;
@@ -920,8 +926,12 @@ def build_html(
         housing markets, or regional composition.
       </p>
       <p class="footnote">
-        Canonical source code and audit trail:
-        <a href="{REPO_URL}">{REPO_URL}</a>.
+        Repository audit artifacts:
+        <a href="{AUDIT_DOC_URL}">AUDIT.md</a>,
+        <a href="{SOURCES_DOC_URL}">SOURCES.md</a>,
+        <a href="{SHA256SUMS_URL}">SHA256SUMS</a>,
+        and
+        <a href="{AUDIT_MANIFEST_URL}">audit manifest JSON</a>.
         Official sources:
         <a href="{BLS_SOURCE_URL}">BLS 2024 state union-membership release</a>
         and

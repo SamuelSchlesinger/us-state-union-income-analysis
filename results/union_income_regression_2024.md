@@ -29,5 +29,6 @@ Notes:
 - Official BLS source URL: https://www.bls.gov/opub/ted/2025/union-membership-rates-highest-in-hawaii-and-new-york-lowest-in-north-carolina-in-2024.htm
 - Income measure: Census ACS 2024 median household income.
 - Official Census API URL: https://api.census.gov/data/2024/acs/acs1?get=NAME,B19013_001E&for=state:*
+- Checked-in Census snapshot: data/census_acs_2024_B19013_001E_state.csv
 - The merged dataset excludes the District of Columbia to keep a 50-state comparison.
 - This is an ecological cross-sectional regression across states and should not be read causally.

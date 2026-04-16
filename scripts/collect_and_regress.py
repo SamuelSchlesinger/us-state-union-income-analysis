@@ -7,12 +7,15 @@ full pipeline with only the Python standard library.
 Data provenance:
 - `data/bls_union_membership_rates_2024.csv` is a checked-in extract of the
   official BLS 2024 state union-membership table.
-- Census income data is fetched live from the official ACS 1-year API.
+- `data/census_acs_2024_B19013_001E_state.csv` is a checked-in snapshot of the
+  exact Census values used by the analysis.
 
 Method:
 1. Load the checked-in BLS state table.
-2. Fetch median household income for all states from the Census API.
-3. Exclude the District of Columbia to keep a 50-state comparison.
+2. Load the checked-in Census snapshot, or refresh it explicitly from the
+   official API with `--refresh-census`.
+3. Exclude the District of Columbia so the analysis remains a 50-state
+   comparison.
 4. Join on state name.
 5. Run an unweighted cross-sectional OLS regression:
    `median_household_income_usd ~ union_membership_rate_pct`
@@ -21,6 +24,7 @@ Method:
 
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 import math
@@ -30,6 +34,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 UNION_CSV = ROOT / "data" / "bls_union_membership_rates_2024.csv"
+CENSUS_SNAPSHOT_CSV = ROOT / "data" / "census_acs_2024_B19013_001E_state.csv"
 MERGED_CSV = ROOT / "data" / "us_states_union_income_2024.csv"
 REGRESSION_JSON = ROOT / "results" / "union_income_regression_2024.json"
 REGRESSION_MD = ROOT / "results" / "union_income_regression_2024.md"
@@ -100,7 +105,46 @@ def fetch_census_rows() -> dict[str, dict[str, object]]:
             "income_year": 2024,
             "income_source_url": CENSUS_SOURCE_URL,
         }
+    if len(rows) != 50:
+        raise ValueError(f"Expected 50 Census rows after excluding DC, found {len(rows)}")
     return rows
+
+
+def load_census_snapshot_rows() -> dict[str, dict[str, object]]:
+    """Load the checked-in Census snapshot used for reproducible offline builds."""
+
+    rows: dict[str, dict[str, object]] = {}
+    with CENSUS_SNAPSHOT_CSV.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            state_name = row["state"]
+            rows[state_name] = {
+                "state": state_name,
+                "state_fips": row["state_fips"],
+                "median_household_income_usd": int(row["median_household_income_usd"]),
+                "income_year": int(row["income_year"]),
+                "income_source_url": row["income_source_url"],
+            }
+    if len(rows) != 50:
+        raise ValueError(f"Expected 50 Census snapshot rows, found {len(rows)}")
+    return rows
+
+
+def write_census_snapshot(rows: dict[str, dict[str, object]]) -> None:
+    """Persist the Census API response in a checked-in CSV for exact reuse."""
+
+    fieldnames = [
+        "state",
+        "state_fips",
+        "median_household_income_usd",
+        "income_year",
+        "income_source_url",
+    ]
+    ordered_rows = [rows[state] for state in sorted(rows)]
+    with CENSUS_SNAPSHOT_CSV.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(ordered_rows)
 
 
 def merge_rows(
@@ -345,6 +389,7 @@ def write_regression_summary(
             "- Official BLS source URL: " + BLS_SOURCE_URL,
             "- Income measure: Census ACS 2024 median household income.",
             "- Official Census API URL: " + CENSUS_SOURCE_URL,
+            "- Checked-in Census snapshot: data/census_acs_2024_B19013_001E_state.csv",
             "- The merged dataset excludes the District of Columbia to keep a 50-state comparison.",
             "- This is an ecological cross-sectional regression across states and should not be read causally.",
         ]
@@ -356,8 +401,32 @@ def write_regression_summary(
 def main() -> None:
     """Run the full data-processing and regression pipeline."""
 
+    parser = argparse.ArgumentParser(
+        description=(
+            "Build the merged 2024 state dataset and regression outputs. "
+            "By default this uses the checked-in Census snapshot."
+        )
+    )
+    parser.add_argument(
+        "--refresh-census",
+        action="store_true",
+        help="Fetch the Census API live and rewrite the checked-in snapshot first.",
+    )
+    args = parser.parse_args()
+
     union_rows = load_union_rows()
-    census_rows = fetch_census_rows()
+    if args.refresh_census:
+        census_rows = fetch_census_rows()
+        write_census_snapshot(census_rows)
+        print(f"Refreshed Census snapshot at {CENSUS_SNAPSHOT_CSV}")
+    else:
+        if not CENSUS_SNAPSHOT_CSV.exists():
+            raise FileNotFoundError(
+                "Missing Census snapshot: "
+                f"{CENSUS_SNAPSHOT_CSV}. Run with --refresh-census in a "
+                "networked environment to create it."
+            )
+        census_rows = load_census_snapshot_rows()
     merged_rows = merge_rows(union_rows, census_rows)
     write_csv(merged_rows)
     summary = regress(merged_rows)

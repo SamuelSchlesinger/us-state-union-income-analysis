@@ -1,0 +1,77 @@
+{
+  "analysis": "U.S. state unionization and median household income, 2024",
+  "checksums_algorithm": "sha256",
+  "reproduction_commands": [
+    "python3 scripts/reproduce.py",
+    "python3 scripts/collect_and_regress.py --refresh-census"
+  ],
+  "official_sources": {
+    "bls_union_membership_release": "https://www.bls.gov/opub/ted/2025/union-membership-rates-highest-in-hawaii-and-new-york-lowest-in-north-carolina-in-2024.htm",
+    "census_acs_2024_api_query": "https://api.census.gov/data/2024/acs/acs1?get=NAME,B19013_001E&for=state:*"
+  },
+  "audit_artifacts": {
+    "audit_trail": "AUDIT.md",
+    "sources": "SOURCES.md",
+    "checksums": "SHA256SUMS",
+    "manifest": "results/union_income_audit_manifest_2024.json",
+    "manifest_checksum_location": "SHA256SUMS"
+  },
+  "checked_in_inputs": [
+    {
+      "path": "README.md",
+      "sha256": "b614fca90d8821b28fd5715fae437fbd84ffa6d7a115bde40d0492ace3ca4731"
+    },
+    {
+      "path": "SOURCES.md",
+      "sha256": "0dedaafd8c96d2db2cc208d2a50ab623261a921d26bf20d7b6ffd8c113899d3b"
+    },
+    {
+      "path": "AUDIT.md",
+      "sha256": "bde22ddb856c69e38469c51b501c101804c182dd523f771729fd1f2bb74fbaf7"
+    },
+    {
+      "path": "data/bls_union_membership_rates_2024.csv",
+      "sha256": "736f60130a9424aef3b9ea9fd5495a6868395f5a9d0cbfbd94c7c52493c05387"
+    },
+    {
+      "path": "data/census_acs_2024_B19013_001E_state.csv",
+      "sha256": "1848ca830030eebe83730c15ad56945fa75df1803bb4f2345f9cbf5ce9a1d923"
+    }
+  ],
+  "scripts": [
+    {
+      "path": "scripts/collect_and_regress.py",
+      "sha256": "780b4980000833db2e9c26144a0a47a0458709bb70a2103ea37f75a7fbb2974c"
+    },
+    {
+      "path": "scripts/build_visual_report.py",
+      "sha256": "8152cc28d75c7365f6cd26ec8bae52e634367da4dfa6ebb0862d5dfad3aabbee"
+    },
+    {
+      "path": "scripts/build_audit_artifacts.py",
+      "sha256": "a926e346ac266fb3a3016ba51c022683151bf6d05b4f553848565ce837f1ab87"
+    },
+    {
+      "path": "scripts/reproduce.py",
+      "sha256": "b98a284b5f7d5b06676caa2b6029e9c90ceb1aa23abfb1750757286d1055e01c"
+    }
+  ],
+  "generated_outputs": [
+    {
+      "path": "data/us_states_union_income_2024.csv",
+      "sha256": "38baa84ffc016d1ae85ba29d1de6eb4fa238136c9eaca56a6f25e58624ab7f28"
+    },
+    {
+      "path": "results/union_income_regression_2024.json",
+      "sha256": "8d358b5e87694afb980f056e9fe1541998fbdef33f35c01623f1b61cd96193dd"
+    },
+    {
+      "path": "results/union_income_regression_2024.md",
+      "sha256": "909f922ecd7b100f3c4e15ad018fedc897a08b7574111f54397948483836401a"
+    },
+    {
+      "path": "results/union_income_visual_report.html",
+      "sha256": "af6b976b629271fb95c4f545a6a5233438e52957b5ca6d969bcafa3e6029b29c"
+    }
+  ]
+}
