@@ -23,6 +23,16 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA_CSV = ROOT / "data" / "us_states_union_income_2024.csv"
 REGRESSION_JSON = ROOT / "results" / "union_income_regression_2024.json"
 REPORT_HTML = ROOT / "results" / "union_income_visual_report.html"
+REPO_URL = "https://github.com/SamuelSchlesinger/us-state-union-income-analysis"
+BLS_SOURCE_URL = (
+    "https://www.bls.gov/opub/ted/2025/"
+    "union-membership-rates-highest-in-hawaii-and-new-york-lowest-"
+    "in-north-carolina-in-2024.htm"
+)
+CENSUS_SOURCE_URL = (
+    "https://api.census.gov/data/2024/acs/acs1"
+    "?get=NAME,B19013_001E&for=state:*"
+)
 
 STATE_ABBR = {
     "Alabama": "AL",
@@ -806,6 +816,10 @@ def build_html(
       font-size: 0.94rem;
     }}
 
+    .footnote a {{
+      color: #0e665e;
+    }}
+
     code {{
       font-family: "SFMono-Regular", Menlo, monospace;
       background: rgba(23, 33, 42, 0.08);
@@ -904,6 +918,14 @@ def build_html(
         Regression p-value for the slope: <code>{p_value:.6f}</code>. This is still descriptive, not causal:
         the chart compares state-level averages and does not control for cost of living, industrial mix, education,
         housing markets, or regional composition.
+      </p>
+      <p class="footnote">
+        Canonical source code and audit trail:
+        <a href="{REPO_URL}">{REPO_URL}</a>.
+        Official sources:
+        <a href="{BLS_SOURCE_URL}">BLS 2024 state union-membership release</a>
+        and
+        <a href="{CENSUS_SOURCE_URL}">Census ACS 2024 API query</a>.
       </p>
     </section>
   </main>

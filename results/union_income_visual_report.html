@@ -361,6 +361,10 @@
       font-size: 0.94rem;
     }
 
+    .footnote a {
+      color: #0e665e;
+    }
+
     code {
       font-family: "SFMono-Regular", Menlo, monospace;
       background: rgba(23, 33, 42, 0.08);
@@ -645,6 +649,14 @@
         Regression p-value for the slope: <code>0.000052</code>. This is still descriptive, not causal:
         the chart compares state-level averages and does not control for cost of living, industrial mix, education,
         housing markets, or regional composition.
+      </p>
+      <p class="footnote">
+        Canonical source code and audit trail:
+        <a href="https://github.com/SamuelSchlesinger/us-state-union-income-analysis">https://github.com/SamuelSchlesinger/us-state-union-income-analysis</a>.
+        Official sources:
+        <a href="https://www.bls.gov/opub/ted/2025/union-membership-rates-highest-in-hawaii-and-new-york-lowest-in-north-carolina-in-2024.htm">BLS 2024 state union-membership release</a>
+        and
+        <a href="https://api.census.gov/data/2024/acs/acs1?get=NAME,B19013_001E&for=state:*">Census ACS 2024 API query</a>.
       </p>
     </section>
   </main>
