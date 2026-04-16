@@ -21,6 +21,11 @@ CENSUS_SOURCE_URL = (
     "https://api.census.gov/data/2024/acs/acs1"
     "?get=NAME,B19013_001E&for=state:*"
 )
+BEA_RELEASE_URL = (
+    "https://www.bea.gov/data/prices-inflation/"
+    "regional-price-parities-state-and-metro-area"
+)
+BEA_DOWNLOAD_URL = "https://apps.bea.gov/regional/zip/SARPP.zip"
 
 INPUT_FILES = [
     "README.md",
@@ -28,6 +33,9 @@ INPUT_FILES = [
     "AUDIT.md",
     "data/bls_union_membership_rates_2024.csv",
     "data/census_acs_2024_B19013_001E_state.csv",
+    "data/bea_sarpp_state_2008_2024.csv",
+    "data/bea_sarpp_definition.xml",
+    "data/bea_sarpp_footnotes.html",
 ]
 
 SCRIPT_FILES = [
@@ -71,10 +79,13 @@ def build_manifest() -> dict[str, object]:
         "reproduction_commands": [
             "python3 scripts/reproduce.py",
             "python3 scripts/collect_and_regress.py --refresh-census",
+            "python3 scripts/collect_and_regress.py --refresh-rpp",
         ],
         "official_sources": {
             "bls_union_membership_release": BLS_SOURCE_URL,
             "census_acs_2024_api_query": CENSUS_SOURCE_URL,
+            "bea_regional_price_parities_release": BEA_RELEASE_URL,
+            "bea_sarpp_state_download": BEA_DOWNLOAD_URL,
         },
         "audit_artifacts": {
             "audit_trail": "AUDIT.md",

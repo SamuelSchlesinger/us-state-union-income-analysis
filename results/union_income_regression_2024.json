@@ -1,27 +1,56 @@
 {
-  "model": "median_household_income_usd ~ union_membership_rate_pct",
-  "n_obs": 50,
-  "degrees_of_freedom": 48,
-  "x_mean": 9.46,
-  "y_mean": 80902.92,
-  "slope": 1256.2962690867187,
-  "intercept": 69018.35729443964,
-  "correlation": 0.5400396942742222,
-  "r_squared": 0.29164287139179534,
-  "rmse": 10317.270617108648,
-  "residual_standard_error": 10530.020229219128,
-  "slope_standard_error": 282.59983439231246,
-  "intercept_standard_error": 3060.173903037027,
-  "slope_t_stat": 4.445495418594957,
-  "intercept_t_stat": 22.553736970942513,
-  "slope_p_value": 5.171505314693903e-05,
-  "intercept_p_value": 9.769962616701378e-15,
-  "slope_95_ci": [
-    688.0912195586986,
-    1824.5013186147387
-  ],
-  "intercept_95_ci": [
-    62865.465280618955,
-    75171.24930826033
-  ]
+  "nominal": {
+    "model": "median_household_income_usd ~ union_membership_rate_pct",
+    "n_obs": 50,
+    "degrees_of_freedom": 48,
+    "x_mean": 9.46,
+    "y_mean": 80902.92,
+    "slope": 1256.2962690867187,
+    "intercept": 69018.35729443964,
+    "correlation": 0.5400396942742222,
+    "r_squared": 0.29164287139179534,
+    "rmse": 10317.270617108648,
+    "residual_standard_error": 10530.020229219128,
+    "slope_standard_error": 282.59983439231246,
+    "intercept_standard_error": 3060.173903037027,
+    "slope_t_stat": 4.445495418594957,
+    "intercept_t_stat": 22.553736970942513,
+    "slope_p_value": 5.171505314693903e-05,
+    "intercept_p_value": 9.769962616701378e-15,
+    "slope_95_ci": [
+      688.0912195586986,
+      1824.5013186147387
+    ],
+    "intercept_95_ci": [
+      62865.465280618955,
+      75171.24930826033
+    ]
+  },
+  "rpp_adjusted": {
+    "model": "median_household_income_real_usd ~ union_membership_rate_pct",
+    "n_obs": 50,
+    "degrees_of_freedom": 48,
+    "x_mean": 9.46,
+    "y_mean": 83067.8954,
+    "slope": 536.7297636127917,
+    "intercept": 77990.43183622298,
+    "correlation": 0.35216967377960845,
+    "r_squared": 0.12402347913003597,
+    "rmse": 7516.614152202807,
+    "residual_standard_error": 7671.612194283187,
+    "slope_standard_error": 205.88719569698728,
+    "intercept_standard_error": 2229.4798034691876,
+    "slope_t_stat": 2.606911817880696,
+    "intercept_t_stat": 34.98144801081659,
+    "slope_p_value": 0.01213636458383105,
+    "intercept_p_value": 3.552713678800501e-15,
+    "slope_95_ci": [
+      122.7658117946579,
+      950.6937154309254
+    ],
+    "intercept_95_ci": [
+      73507.76225194671,
+      82473.10142049925
+    ]
+  }
 }

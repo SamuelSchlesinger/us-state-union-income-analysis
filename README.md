@@ -3,8 +3,10 @@
 This repository is the canonical source for a small, auditable 2024 dataset and report on:
 
 - state union membership rates
-- state median household income
-- a simple cross-state OLS regression relating the two
+- state median household income, reported two ways — nominal and
+  RPP-adjusted (BEA Regional Price Parities, all items)
+- two simple cross-state OLS regressions relating union density to each
+  income measure
 
 The repository is designed for reproducibility and external review:
 
@@ -21,15 +23,16 @@ Use any Python 3.10+ interpreter:
 python3 scripts/reproduce.py
 ```
 
-This default path is offline and uses the checked-in Census snapshot.
-When the worktree is clean, `scripts/reproduce.py` also pins the report's audit
-links to the current Git commit automatically. Otherwise those links resolve
-against `main`.
+This default path is offline and uses the checked-in Census snapshot and BEA
+SARPP dump. When the worktree is clean, `scripts/reproduce.py` also pins the
+report's audit links to the current Git commit automatically. Otherwise those
+links resolve against `main`.
 
-To refresh that snapshot from the official Census API before rebuilding:
+To refresh either upstream source before rebuilding:
 
 ```bash
 python3 scripts/collect_and_regress.py --refresh-census
+python3 scripts/collect_and_regress.py --refresh-rpp
 python3 scripts/build_visual_report.py
 python3 scripts/build_audit_artifacts.py
 ```
@@ -48,14 +51,22 @@ python3 scripts/build_audit_artifacts.py
   Official BLS state union-membership table preserved locally as a checked-in extract.
 - `data/census_acs_2024_B19013_001E_state.csv`
   Checked-in Census ACS snapshot used for exact offline reproduction.
+- `data/bea_sarpp_state_2008_2024.csv`
+  Unmodified BEA Regional Price Parities state dump (table SARPP, line codes
+  1-5, 2008-2024). The pipeline parses LineCode 1 (All items) for the most
+  recent year directly from this file.
+- `data/bea_sarpp_definition.xml`, `data/bea_sarpp_footnotes.html`
+  BEA metadata shipped alongside the dump.
 - `data/us_states_union_income_2024.csv`
-  Processed 50-state dataset used for the regression and visuals.
+  Processed 50-state dataset used for the regression and visuals, including
+  both nominal and RPP-adjusted income columns.
 - `results/union_income_regression_2024.json`
-  Machine-readable regression summary.
+  Machine-readable regression summary with both `nominal` and `rpp_adjusted` blocks.
 - `results/union_income_regression_2024.md`
-  Human-readable regression summary.
+  Human-readable regression summary for both models.
 - `results/union_income_visual_report.html`
-  Standalone HTML report.
+  Standalone HTML report with side-by-side scatter plots, a regression
+  comparison table, and a rank-shift panel.
 - `results/union_income_audit_manifest_2024.json`
   Machine-readable manifest of checked-in inputs, scripts, outputs, and hashes.
 - `SHA256SUMS`
@@ -75,15 +86,19 @@ The pipeline does exactly this:
 
 1. Load the checked-in BLS state union-membership extract for 2024.
 2. Load the checked-in `B19013_001E` Census ACS 2024 1-year snapshot.
-3. Drop the District of Columbia so the analysis is a 50-state comparison.
-4. Join the BLS and Census rows on state name.
-5. Run an unweighted OLS regression:
-   `median_household_income_usd ~ union_membership_rate_pct`
-6. Build the standalone HTML report from the processed CSV and regression JSON.
-7. Generate the audit manifest and refresh `SHA256SUMS`.
+3. Load the checked-in BEA SARPP dump and filter to LineCode 1 (All items)
+   for the most recent year.
+4. Drop the District of Columbia so the analysis is a 50-state comparison.
+5. Join the BLS, Census, and BEA rows on state name.
+6. Compute `median_household_income_real_usd = median_household_income_usd / (rpp_all_items / 100)`.
+7. Run two unweighted OLS regressions across the 50 states:
+   - `median_household_income_usd ~ union_membership_rate_pct`
+   - `median_household_income_real_usd ~ union_membership_rate_pct`
+8. Build the standalone HTML report from the processed CSV and regression JSON.
+9. Generate the audit manifest and refresh `SHA256SUMS`.
 
 ## Important provenance note
 
 The BLS file is checked in because automated shell retrieval from `bls.gov` was blocked from the environment used to assemble this repository. The values were preserved from the official BLS release page and should be audited against that page directly. That limitation is documented rather than hidden.
 
-The Census values are also checked in now, so the default audit and reproduction flow does not depend on live network access. Refreshing the Census snapshot is an explicit step rather than a hidden runtime dependency.
+The Census and BEA values are also checked in, so the default audit and reproduction flow does not depend on live network access. The BEA dump is stored byte-for-byte as released; all RPP filtering happens in code at run time. Refreshing either upstream source is an explicit step rather than a hidden runtime dependency.

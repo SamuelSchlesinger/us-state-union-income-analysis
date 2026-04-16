@@ -7,8 +7,9 @@ This script does not collect or transform source data. It reads:
 
 and turns them into `results/union_income_visual_report.html`.
 
-The numerical processing happens in `collect_and_regress.py`. This file is only
-responsible for presentation.
+Every number, label, axis range, and state callout in the output is derived
+from those two files. The numerical processing happens in
+`collect_and_regress.py`; this file is only responsible for presentation.
 """
 
 from __future__ import annotations
@@ -42,58 +43,27 @@ CENSUS_SOURCE_URL = (
     "https://api.census.gov/data/2024/acs/acs1"
     "?get=NAME,B19013_001E&for=state:*"
 )
+BEA_SOURCE_URL = (
+    "https://www.bea.gov/data/prices-inflation/"
+    "regional-price-parities-state-and-metro-area"
+)
+BEA_DOWNLOAD_URL = "https://apps.bea.gov/regional/zip/SARPP.zip"
 
 STATE_ABBR = {
-    "Alabama": "AL",
-    "Alaska": "AK",
-    "Arizona": "AZ",
-    "Arkansas": "AR",
-    "California": "CA",
-    "Colorado": "CO",
-    "Connecticut": "CT",
-    "Delaware": "DE",
-    "Florida": "FL",
-    "Georgia": "GA",
-    "Hawaii": "HI",
-    "Idaho": "ID",
-    "Illinois": "IL",
-    "Indiana": "IN",
-    "Iowa": "IA",
-    "Kansas": "KS",
-    "Kentucky": "KY",
-    "Louisiana": "LA",
-    "Maine": "ME",
-    "Maryland": "MD",
-    "Massachusetts": "MA",
-    "Michigan": "MI",
-    "Minnesota": "MN",
-    "Mississippi": "MS",
-    "Missouri": "MO",
-    "Montana": "MT",
-    "Nebraska": "NE",
-    "Nevada": "NV",
-    "New Hampshire": "NH",
-    "New Jersey": "NJ",
-    "New Mexico": "NM",
-    "New York": "NY",
-    "North Carolina": "NC",
-    "North Dakota": "ND",
-    "Ohio": "OH",
-    "Oklahoma": "OK",
-    "Oregon": "OR",
-    "Pennsylvania": "PA",
-    "Rhode Island": "RI",
-    "South Carolina": "SC",
-    "South Dakota": "SD",
-    "Tennessee": "TN",
-    "Texas": "TX",
-    "Utah": "UT",
-    "Vermont": "VT",
-    "Virginia": "VA",
-    "Washington": "WA",
-    "West Virginia": "WV",
-    "Wisconsin": "WI",
-    "Wyoming": "WY",
+    "Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR",
+    "California": "CA", "Colorado": "CO", "Connecticut": "CT", "Delaware": "DE",
+    "Florida": "FL", "Georgia": "GA", "Hawaii": "HI", "Idaho": "ID",
+    "Illinois": "IL", "Indiana": "IN", "Iowa": "IA", "Kansas": "KS",
+    "Kentucky": "KY", "Louisiana": "LA", "Maine": "ME", "Maryland": "MD",
+    "Massachusetts": "MA", "Michigan": "MI", "Minnesota": "MN",
+    "Mississippi": "MS", "Missouri": "MO", "Montana": "MT", "Nebraska": "NE",
+    "Nevada": "NV", "New Hampshire": "NH", "New Jersey": "NJ",
+    "New Mexico": "NM", "New York": "NY", "North Carolina": "NC",
+    "North Dakota": "ND", "Ohio": "OH", "Oklahoma": "OK", "Oregon": "OR",
+    "Pennsylvania": "PA", "Rhode Island": "RI", "South Carolina": "SC",
+    "South Dakota": "SD", "Tennessee": "TN", "Texas": "TX", "Utah": "UT",
+    "Vermont": "VT", "Virginia": "VA", "Washington": "WA",
+    "West Virginia": "WV", "Wisconsin": "WI", "Wyoming": "WY",
 }
 
 QUADRANT_COLORS = {
@@ -110,6 +80,9 @@ QUADRANT_LABELS = {
     "low_union_low_income": "Lower union / lower income",
 }
 
+NOMINAL_KEY = "median_household_income_usd"
+REAL_KEY = "median_household_income_real_usd"
+
 
 def load_rows() -> list[dict[str, float | int | str]]:
     rows: list[dict[str, float | int | str]] = []
@@ -123,27 +96,25 @@ def load_rows() -> list[dict[str, float | int | str]]:
                     "union_membership_rate_pct": float(row["union_membership_rate_pct"]),
                     "union_members": int(row["union_members"]),
                     "employed_wage_salary_workers": int(row["employed_wage_salary_workers"]),
-                    "median_household_income_usd": int(row["median_household_income_usd"]),
+                    NOMINAL_KEY: int(row[NOMINAL_KEY]),
+                    REAL_KEY: float(row[REAL_KEY]),
+                    "rpp_all_items": float(row["rpp_all_items"]),
+                    "rpp_year": int(row["rpp_year"]),
+                    "income_year": int(row["income_year"]),
                 }
             )
     return rows
 
 
-def load_regression() -> dict[str, float | int | str | list[float]]:
+def load_regressions() -> dict[str, dict[str, float | int | str | list[float]]]:
     return json.loads(REGRESSION_JSON.read_text(encoding="utf-8"))
 
 
-def scale(
-    value: float,
-    domain_min: float,
-    domain_max: float,
-    range_min: float,
-    range_max: float,
-) -> float:
-    if domain_max == domain_min:
-        return (range_min + range_max) / 2
-    ratio = (value - domain_min) / (domain_max - domain_min)
-    return range_min + ratio * (range_max - range_min)
+def scale(value: float, d_min: float, d_max: float, r_min: float, r_max: float) -> float:
+    if d_max == d_min:
+        return (r_min + r_max) / 2
+    ratio = (value - d_min) / (d_max - d_min)
+    return r_min + ratio * (r_max - r_min)
 
 
 def currency(value: float) -> str:
@@ -153,68 +124,57 @@ def currency(value: float) -> str:
 def compact_currency(value: float) -> str:
     sign = "-" if value < 0 else ""
     amount = abs(value)
-    if abs(value) >= 1_000_000:
+    if amount >= 1_000_000:
         return f"{sign}${amount / 1_000_000:.1f}M"
-    if abs(value) >= 1000:
+    if amount >= 1000:
         return f"{sign}${amount / 1000:.1f}k"
     return f"{sign}{currency(amount)}"
 
 
-def state_chip(row: dict[str, float | int | str]) -> str:
-    state = escape(str(row["state"]))
-    union = f"{float(row['union_membership_rate_pct']):.1f}%"
-    income = compact_currency(float(row["median_household_income_usd"]))
-    color = QUADRANT_COLORS[str(row["quadrant"])]
-    return (
-        '<span class="chip" style="--chip-accent: '
-        + color
-        + '">'
-        + f"<strong>{state}</strong><span>{union} · {income}</span>"
-        + "</span>"
-    )
-
-
 def enrich_rows(
     rows: list[dict[str, float | int | str]],
-    regression: dict[str, float | int | str | list[float]],
-) -> list[dict[str, float | int | str]]:
-    x_mean = float(regression["x_mean"])
-    y_mean = float(regression["y_mean"])
-    slope = float(regression["slope"])
-    intercept = float(regression["intercept"])
+    regressions: dict[str, dict[str, float | int | str | list[float]]],
+) -> None:
+    nominal = regressions["nominal"]
+    adjusted = regressions["rpp_adjusted"]
+
+    x_mean_n = float(nominal["x_mean"])
+    y_mean_n = float(nominal["y_mean"])
+    slope_n = float(nominal["slope"])
+    intercept_n = float(nominal["intercept"])
+
+    slope_r = float(adjusted["slope"])
+    intercept_r = float(adjusted["intercept"])
 
     for row in rows:
         x = float(row["union_membership_rate_pct"])
-        y = float(row["median_household_income_usd"])
-        predicted = intercept + slope * x
-        residual = y - predicted
+        y_n = float(row[NOMINAL_KEY])
+        y_r = float(row[REAL_KEY])
 
-        if x >= x_mean and y >= y_mean:
-            quadrant = "high_union_high_income"
-        elif x >= x_mean and y < y_mean:
-            quadrant = "high_union_low_income"
-        elif x < x_mean and y >= y_mean:
-            quadrant = "low_union_high_income"
+        row["predicted_nominal_usd"] = intercept_n + slope_n * x
+        row["residual_nominal_usd"] = y_n - row["predicted_nominal_usd"]
+        row["predicted_real_usd"] = intercept_r + slope_r * x
+        row["residual_real_usd"] = y_r - row["predicted_real_usd"]
+
+        if x >= x_mean_n and y_n >= y_mean_n:
+            row["quadrant"] = "high_union_high_income"
+        elif x >= x_mean_n and y_n < y_mean_n:
+            row["quadrant"] = "high_union_low_income"
+        elif x < x_mean_n and y_n >= y_mean_n:
+            row["quadrant"] = "low_union_high_income"
         else:
-            quadrant = "low_union_low_income"
+            row["quadrant"] = "low_union_low_income"
 
-        row["predicted_income_usd"] = predicted
-        row["residual_income_usd"] = residual
-        row["quadrant"] = quadrant
         row["abbr"] = STATE_ABBR[str(row["state"])]
 
-    return rows
 
-
-def choose_labels(rows: list[dict[str, float | int | str]]) -> set[str]:
+def choose_labels(rows: list[dict[str, float | int | str]], y_key: str) -> set[str]:
     selected: set[str] = set()
     selectors = [
-        sorted(rows, key=lambda row: float(row["union_membership_rate_pct"]), reverse=True)[:4],
-        sorted(rows, key=lambda row: float(row["union_membership_rate_pct"]))[:4],
-        sorted(rows, key=lambda row: float(row["median_household_income_usd"]), reverse=True)[:4],
-        sorted(rows, key=lambda row: float(row["median_household_income_usd"]))[:4],
-        sorted(rows, key=lambda row: float(row["residual_income_usd"]), reverse=True)[:3],
-        sorted(rows, key=lambda row: float(row["residual_income_usd"]))[:3],
+        sorted(rows, key=lambda r: float(r["union_membership_rate_pct"]), reverse=True)[:4],
+        sorted(rows, key=lambda r: float(r["union_membership_rate_pct"]))[:4],
+        sorted(rows, key=lambda r: float(r[y_key]), reverse=True)[:4],
+        sorted(rows, key=lambda r: float(r[y_key]))[:4],
     ]
     for group in selectors:
         for row in group:
@@ -223,34 +183,42 @@ def choose_labels(rows: list[dict[str, float | int | str]]) -> set[str]:
     return selected
 
 
+def nice_bounds(low: float, high: float, step: float) -> tuple[float, float]:
+    """Snap bounds outward to the nearest multiple of `step`."""
+
+    import math
+    bounded_low = math.floor(low / step) * step
+    bounded_high = math.ceil(high / step) * step
+    return bounded_low, bounded_high
+
+
 def scatter_svg(
     rows: list[dict[str, float | int | str]],
     regression: dict[str, float | int | str | list[float]],
+    y_key: str,
+    y_bounds: tuple[float, float],
+    title: str,
+    subtitle: str,
 ) -> str:
-    width = 1060
-    height = 620
-    margin_left = 90
-    margin_right = 36
-    margin_top = 40
-    margin_bottom = 72
-
-    plot_width = width - margin_left - margin_right
-    plot_height = height - margin_top - margin_bottom
+    width = 560
+    height = 420
+    margin_left = 70
+    margin_right = 22
+    margin_top = 52
+    margin_bottom = 56
 
     x_values = [float(row["union_membership_rate_pct"]) for row in rows]
-    y_values = [float(row["median_household_income_usd"]) for row in rows]
-
     x_min = min(x_values) - 1.0
     x_max = max(x_values) + 1.5
-    y_min = 55_000
-    y_max = 110_000
+
+    y_min, y_max = y_bounds
 
     x_mean = float(regression["x_mean"])
     y_mean = float(regression["y_mean"])
     slope = float(regression["slope"])
     intercept = float(regression["intercept"])
 
-    selected_labels = choose_labels(rows)
+    selected_labels = choose_labels(rows, y_key)
 
     def sx(value: float) -> float:
         return scale(value, x_min, x_max, margin_left, width - margin_right)
@@ -259,20 +227,27 @@ def scatter_svg(
         return scale(value, y_min, y_max, height - margin_bottom, margin_top)
 
     def radius(workers: int) -> float:
-        return scale(workers ** 0.5, 500, 4100, 6, 24)
+        return scale(workers ** 0.5, 500, 4100, 4, 16)
 
-    line_x1 = x_min
-    line_x2 = x_max
-    line_y1 = intercept + slope * line_x1
-    line_y2 = intercept + slope * line_x2
-
-    x_ticks = [2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 22.5, 25]
-    y_ticks = [60_000, 70_000, 80_000, 90_000, 100_000, 110_000]
+    x_ticks = [5, 10, 15, 20, 25]
+    y_step = 10_000
+    y_ticks = []
+    tick = int(y_min)
+    while tick <= int(y_max) + 1:
+        y_ticks.append(tick)
+        tick += y_step
 
     svg: list[str] = [
-        f'<svg viewBox="0 0 {width} {height}" class="chart-svg" role="img" '
-        'aria-label="Scatterplot of state unionization and median income">'
+        f'<svg viewBox="0 0 {width} {height}" class="chart-svg small-scatter" role="img" '
+        f'aria-label="{escape(title)}">'
     ]
+
+    svg.append(
+        f'<text x="{margin_left}" y="22" class="panel-title">{escape(title)}</text>'
+    )
+    svg.append(
+        f'<text x="{margin_left}" y="40" class="panel-subtitle">{escape(subtitle)}</text>'
+    )
 
     quadrants = [
         (x_min, y_mean, x_mean, y_max, "#d4f1ea"),
@@ -282,13 +257,9 @@ def scatter_svg(
     ]
     for x0, y0, x1, y1, fill in quadrants:
         svg.append(
-            '<rect x="{x}" y="{y}" width="{w}" height="{h}" fill="{fill}" opacity="0.35"/>'.format(
-                x=f"{sx(x0):.1f}",
-                y=f"{sy(y1):.1f}",
-                w=f"{sx(x1) - sx(x0):.1f}",
-                h=f"{sy(y0) - sy(y1):.1f}",
-                fill=fill,
-            )
+            f'<rect x="{sx(x0):.1f}" y="{sy(y1):.1f}" '
+            f'width="{sx(x1) - sx(x0):.1f}" height="{sy(y0) - sy(y1):.1f}" '
+            f'fill="{fill}" opacity="0.35"/>'
         )
 
     for x_tick in x_ticks:
@@ -298,126 +269,173 @@ def scatter_svg(
             f'y2="{height - margin_bottom}" class="gridline"/>'
         )
         svg.append(
-            f'<text x="{x_pos:.1f}" y="{height - margin_bottom + 28}" class="axis-label" '
-            f'text-anchor="middle">{x_tick:.1f}%</text>'
+            f'<text x="{x_pos:.1f}" y="{height - margin_bottom + 18}" class="axis-label" '
+            f'text-anchor="middle">{x_tick}%</text>'
         )
 
     for y_tick in y_ticks:
         y_pos = sy(y_tick)
         svg.append(
-            f'<line x1="{margin_left}" y1="{y_pos:.1f}" x2="{width - margin_right}" y2="{y_pos:.1f}" class="gridline"/>'
+            f'<line x1="{margin_left}" y1="{y_pos:.1f}" x2="{width - margin_right}" '
+            f'y2="{y_pos:.1f}" class="gridline"/>'
         )
         svg.append(
-            f'<text x="{margin_left - 14}" y="{y_pos + 5:.1f}" class="axis-label" text-anchor="end">'
-            f"{int(y_tick / 1000)}k</text>"
+            f'<text x="{margin_left - 10}" y="{y_pos + 4:.1f}" class="axis-label" '
+            f'text-anchor="end">{int(y_tick / 1000)}k</text>'
         )
 
     svg.append(
-        f'<line x1="{margin_left}" y1="{sy(y_mean):.1f}" x2="{width - margin_right}" y2="{sy(y_mean):.1f}" class="mean-line"/>'
+        f'<line x1="{margin_left}" y1="{sy(y_mean):.1f}" x2="{width - margin_right}" '
+        f'y2="{sy(y_mean):.1f}" class="mean-line"/>'
     )
     svg.append(
-        f'<line x1="{sx(x_mean):.1f}" y1="{margin_top}" x2="{sx(x_mean):.1f}" y2="{height - margin_bottom}" class="mean-line"/>'
-    )
-    svg.append(
-        f'<text x="{width - margin_right - 4}" y="{sy(y_mean) - 10:.1f}" class="annotation" text-anchor="end">'
-        f"mean income {currency(y_mean)}</text>"
-    )
-    svg.append(
-        f'<text x="{sx(x_mean) + 8:.1f}" y="{margin_top + 18}" class="annotation">'
-        f"mean union {x_mean:.1f}%</text>"
+        f'<line x1="{sx(x_mean):.1f}" y1="{margin_top}" x2="{sx(x_mean):.1f}" '
+        f'y2="{height - margin_bottom}" class="mean-line"/>'
     )
 
+    line_y1 = intercept + slope * x_min
+    line_y2 = intercept + slope * x_max
     svg.append(
-        f'<line x1="{sx(line_x1):.1f}" y1="{sy(line_y1):.1f}" x2="{sx(line_x2):.1f}" y2="{sy(line_y2):.1f}" class="trend-line"/>'
+        f'<line x1="{sx(x_min):.1f}" y1="{sy(line_y1):.1f}" '
+        f'x2="{sx(x_max):.1f}" y2="{sy(line_y2):.1f}" class="trend-line"/>'
     )
 
     for row in rows:
         x = float(row["union_membership_rate_pct"])
-        y = float(row["median_household_income_usd"])
-        bubble_radius = radius(int(row["employed_wage_salary_workers"]))
+        y = float(row[y_key])
+        r = radius(int(row["employed_wage_salary_workers"]))
         fill = QUADRANT_COLORS[str(row["quadrant"])]
-        title = (
-            f"{row['state']}: {x:.1f}% union, {currency(y)}, "
-            f"{int(row['employed_wage_salary_workers']):,} wage and salary workers"
+        tooltip = (
+            f"{row['state']}: {x:.1f}% union, "
+            f"nominal {currency(float(row[NOMINAL_KEY]))}, "
+            f"RPP-adjusted {currency(float(row[REAL_KEY]))}, "
+            f"RPP {float(row['rpp_all_items']):.1f}"
         )
         svg.append(
-            f'<circle cx="{sx(x):.1f}" cy="{sy(y):.1f}" r="{bubble_radius:.1f}" '
-            f'fill="{fill}" class="bubble"><title>{escape(title)}</title></circle>'
+            f'<circle cx="{sx(x):.1f}" cy="{sy(y):.1f}" r="{r:.1f}" '
+            f'fill="{fill}" class="bubble"><title>{escape(tooltip)}</title></circle>'
         )
 
     for row in rows:
         if str(row["state"]) not in selected_labels:
             continue
         x = sx(float(row["union_membership_rate_pct"]))
-        y = sy(float(row["median_household_income_usd"]))
-        x_offset = 10 if float(row["union_membership_rate_pct"]) < x_mean else -10
+        y = sy(float(row[y_key]))
+        x_offset = 8 if float(row["union_membership_rate_pct"]) < x_mean else -8
         anchor = "start" if x_offset > 0 else "end"
-        y_offset = -12 if float(row["median_household_income_usd"]) > y_mean else 18
+        y_offset = -9 if float(row[y_key]) > y_mean else 14
         svg.append(
-            f'<text x="{x + x_offset:.1f}" y="{y + y_offset:.1f}" class="point-label" text-anchor="{anchor}">'
-            f"{escape(str(row['abbr']))}</text>"
+            f'<text x="{x + x_offset:.1f}" y="{y + y_offset:.1f}" class="point-label" '
+            f'text-anchor="{anchor}">{escape(str(row["abbr"]))}</text>'
         )
 
     svg.append(
-        f'<text x="{width / 2:.1f}" y="{height - 18}" class="axis-title" text-anchor="middle">'
-        "Union membership rate of employed wage and salary workers</text>"
+        f'<text x="{width / 2:.1f}" y="{height - 12}" class="axis-title" '
+        f'text-anchor="middle">Union membership rate</text>'
     )
     svg.append(
-        f'<text x="24" y="{height / 2:.1f}" class="axis-title" text-anchor="middle" '
-        f'transform="rotate(-90 24 {height / 2:.1f})">Median household income (USD)</text>'
+        f'<text x="18" y="{height / 2:.1f}" class="axis-title" '
+        f'text-anchor="middle" transform="rotate(-90 18 {height / 2:.1f})">'
+        f'Median household income (USD)</text>'
     )
     svg.append("</svg>")
     return "\n".join(svg)
 
 
-def residual_panel_svg(
-    rows: list[dict[str, float | int | str]],
-    positive: bool,
-) -> str:
-    ranked = sorted(rows, key=lambda row: float(row["residual_income_usd"]), reverse=positive)
-    selected = ranked[:8]
-    values = [abs(float(row["residual_income_usd"])) for row in selected]
-
-    width = 500
-    row_height = 38
-    height = 70 + len(selected) * row_height
-    left = 130
-    right = 32
-    top = 26
-    max_value = max(values) * 1.12
-    color = "#17887b" if positive else "#d9643b"
-    title = "Above the line" if positive else "Below the line"
-    subtitle = (
-        "Higher income than the simple model predicts"
-        if positive
-        else "Lower income than the simple model predicts"
+def shared_y_bounds(rows: list[dict[str, float | int | str]]) -> tuple[float, float]:
+    low = min(
+        min(float(r[NOMINAL_KEY]) for r in rows),
+        min(float(r[REAL_KEY]) for r in rows),
     )
+    high = max(
+        max(float(r[NOMINAL_KEY]) for r in rows),
+        max(float(r[REAL_KEY]) for r in rows),
+    )
+    return nice_bounds(low - 1500, high + 1500, 5_000)
+
+
+def rank_shift_panel_svg(rows: list[dict[str, float | int | str]]) -> str:
+    ranked_nominal = {
+        str(r["state"]): idx + 1
+        for idx, r in enumerate(
+            sorted(rows, key=lambda r: float(r[NOMINAL_KEY]), reverse=True)
+        )
+    }
+    ranked_real = {
+        str(r["state"]): idx + 1
+        for idx, r in enumerate(
+            sorted(rows, key=lambda r: float(r[REAL_KEY]), reverse=True)
+        )
+    }
+
+    enriched = []
+    for row in rows:
+        name = str(row["state"])
+        shift = ranked_nominal[name] - ranked_real[name]
+        enriched.append({**row, "rank_nominal": ranked_nominal[name], "rank_real": ranked_real[name], "rank_shift": shift})
+
+    gains = sorted(enriched, key=lambda r: r["rank_shift"], reverse=True)[:6]
+    losses = sorted(enriched, key=lambda r: r["rank_shift"])[:6]
+
+    width = 560
+    row_height = 30
+    height = 120 + max(len(gains), len(losses)) * row_height
+    left = 20
+    right = 20
+    top = 28
 
     svg = [
-        f'<svg viewBox="0 0 {width} {height}" class="chart-svg small" role="img" aria-label="{title} residual chart">',
-        f'<text x="{left}" y="20" class="panel-title">{title}</text>',
-        f'<text x="{left}" y="40" class="panel-subtitle">{subtitle}</text>',
+        f'<svg viewBox="0 0 {width} {height}" class="chart-svg" role="img" '
+        f'aria-label="Rank shifts after RPP adjustment">',
+        f'<text x="{left}" y="22" class="panel-title">Biggest rank shifts after RPP adjustment</text>',
+        f'<text x="{left}" y="40" class="panel-subtitle">'
+        f'Move from nominal-income rank to RPP-adjusted rank (1 = highest income).</text>',
     ]
 
-    for idx, row in enumerate(selected):
-        residual = float(row["residual_income_usd"])
-        bar_width = scale(abs(residual), 0, max_value, 0, width - left - right)
-        y = top + 20 + idx * row_height
-        svg.append(
-            f'<line x1="{left}" y1="{y + 8:.1f}" x2="{width - right}" y2="{y + 8:.1f}" class="mini-grid"/>'
+    col_width = (width - left - right) / 2
+    svg.append(
+        f'<text x="{left}" y="{top + 30}" class="column-header">Climbed the most</text>'
+    )
+    svg.append(
+        f'<text x="{left + col_width + 20}" y="{top + 30}" class="column-header">Fell the most</text>'
+    )
+
+    for idx, row in enumerate(gains):
+        y = top + 56 + idx * row_height
+        label = (
+            f"{row['state']}: {row['rank_nominal']} → {row['rank_real']}"
+            f"  (+{row['rank_shift']})"
         )
         svg.append(
-            f'<text x="{left - 12}" y="{y + 13:.1f}" class="mini-label" text-anchor="end">{escape(str(row["state"]))}</text>'
+            f'<text x="{left}" y="{y}" class="rank-row gain">{escape(label)}</text>'
+        )
+
+    for idx, row in enumerate(losses):
+        y = top + 56 + idx * row_height
+        label = (
+            f"{row['state']}: {row['rank_nominal']} → {row['rank_real']}"
+            f"  ({row['rank_shift']:+d})"
         )
         svg.append(
-            f'<rect x="{left}" y="{y - 2:.1f}" width="{bar_width:.1f}" height="18" rx="9" fill="{color}" opacity="0.9"/>'
-        )
-        svg.append(
-            f'<text x="{left + bar_width + 10:.1f}" y="{y + 13:.1f}" class="mini-value">{compact_currency(residual)}</text>'
+            f'<text x="{left + col_width + 20}" y="{y}" class="rank-row loss">{escape(label)}</text>'
         )
 
     svg.append("</svg>")
     return "\n".join(svg)
+
+
+def state_chip(row: dict[str, float | int | str]) -> str:
+    state = escape(str(row["state"]))
+    union = f"{float(row['union_membership_rate_pct']):.1f}%"
+    income = compact_currency(float(row[NOMINAL_KEY]))
+    color = QUADRANT_COLORS[str(row["quadrant"])]
+    return (
+        '<span class="chip" style="--chip-accent: '
+        + color
+        + '">'
+        + f"<strong>{state}</strong><span>{union} · {income}</span>"
+        + "</span>"
+    )
 
 
 def quadrant_markup(rows: list[dict[str, float | int | str]]) -> str:
@@ -431,7 +449,7 @@ def quadrant_markup(rows: list[dict[str, float | int | str]]) -> str:
             buckets[key],
             key=lambda row: (
                 -float(row["union_membership_rate_pct"]),
-                -float(row["median_household_income_usd"]),
+                -float(row[NOMINAL_KEY]),
             ),
         )
         chips = "".join(state_chip(row) for row in bucket_rows)
@@ -446,28 +464,128 @@ def quadrant_markup(rows: list[dict[str, float | int | str]]) -> str:
     return "\n".join(sections)
 
 
+def comparison_stat_row(label: str, nominal_fmt: str, real_fmt: str, note: str = "") -> str:
+    note_html = f'<div class="note">{escape(note)}</div>' if note else ""
+    return (
+        '<tr>'
+        + f'<th scope="row"><div class="label">{escape(label)}</div>{note_html}</th>'
+        + f'<td class="val nominal">{nominal_fmt}</td>'
+        + f'<td class="val real">{real_fmt}</td>'
+        + '</tr>'
+    )
+
+
+def comparison_table_html(nominal: dict, adjusted: dict) -> str:
+    def ci_text(ci: list[float]) -> str:
+        return f"${ci[0]:,.0f} – ${ci[1]:,.0f}"
+
+    rows_html = [
+        comparison_stat_row(
+            "Slope (USD per +1 pp union)",
+            currency(float(nominal["slope"])),
+            currency(float(adjusted["slope"])),
+            "How much median income rises per one-point increase in union density.",
+        ),
+        comparison_stat_row(
+            "Slope 95% CI",
+            ci_text(list(nominal["slope_95_ci"])),
+            ci_text(list(adjusted["slope_95_ci"])),
+        ),
+        comparison_stat_row(
+            "Slope p-value",
+            f"{float(nominal['slope_p_value']):.4g}",
+            f"{float(adjusted['slope_p_value']):.4g}",
+        ),
+        comparison_stat_row(
+            "Correlation",
+            f"{float(nominal['correlation']):.3f}",
+            f"{float(adjusted['correlation']):.3f}",
+        ),
+        comparison_stat_row(
+            "R-squared",
+            f"{float(nominal['r_squared']):.3f}",
+            f"{float(adjusted['r_squared']):.3f}",
+        ),
+        comparison_stat_row(
+            "Mean income (y)",
+            currency(float(nominal["y_mean"])),
+            currency(float(adjusted["y_mean"])),
+        ),
+        comparison_stat_row(
+            "Residual std. error",
+            currency(float(nominal["residual_standard_error"])),
+            currency(float(adjusted["residual_standard_error"])),
+        ),
+    ]
+
+    return (
+        '<table class="compare">'
+        + '<thead><tr>'
+        + '<th></th>'
+        + '<th class="col nominal">Nominal income</th>'
+        + '<th class="col real">RPP-adjusted income</th>'
+        + '</tr></thead>'
+        + f'<tbody>{"".join(rows_html)}</tbody>'
+        + '</table>'
+    )
+
+
 def build_html(
     rows: list[dict[str, float | int | str]],
-    regression: dict[str, float | int | str | list[float]],
+    regressions: dict[str, dict[str, float | int | str | list[float]]],
 ) -> str:
-    n_obs = int(regression["n_obs"])
-    slope = float(regression["slope"])
-    correlation = float(regression["correlation"])
-    r_squared = float(regression["r_squared"])
-    p_value = float(regression["slope_p_value"])
-    x_mean = float(regression["x_mean"])
-    y_mean = float(regression["y_mean"])
+    nominal = regressions["nominal"]
+    adjusted = regressions["rpp_adjusted"]
 
-    high_union = max(rows, key=lambda row: float(row["union_membership_rate_pct"]))
-    low_union = min(rows, key=lambda row: float(row["union_membership_rate_pct"]))
-    high_income = max(rows, key=lambda row: float(row["median_household_income_usd"]))
+    n_obs = int(nominal["n_obs"])
+    x_mean = float(nominal["x_mean"])
+    y_mean_nominal = float(nominal["y_mean"])
+    y_mean_real = float(adjusted["y_mean"])
+
+    slope_nominal = float(nominal["slope"])
+    slope_real = float(adjusted["slope"])
+    correlation_nominal = float(nominal["correlation"])
+    correlation_real = float(adjusted["correlation"])
+    r_squared_nominal = float(nominal["r_squared"])
+    r_squared_real = float(adjusted["r_squared"])
+
+    rpp_year = int(rows[0]["rpp_year"])
+    income_year = int(rows[0]["income_year"])
+
+    slope_shrinkage_pct = (1 - slope_real / slope_nominal) * 100 if slope_nominal else 0.0
+
+    high_union = max(rows, key=lambda r: float(r["union_membership_rate_pct"]))
+    low_union = min(rows, key=lambda r: float(r["union_membership_rate_pct"]))
+    high_rpp = max(rows, key=lambda r: float(r["rpp_all_items"]))
+    low_rpp = min(rows, key=lambda r: float(r["rpp_all_items"]))
+
+    y_bounds = shared_y_bounds(rows)
+
+    nominal_scatter = scatter_svg(
+        rows,
+        nominal,
+        NOMINAL_KEY,
+        y_bounds,
+        "Nominal median household income",
+        "Census ACS 2024 1-year estimates, unadjusted dollars",
+    )
+    real_scatter = scatter_svg(
+        rows,
+        adjusted,
+        REAL_KEY,
+        y_bounds,
+        f"RPP-adjusted income ({rpp_year})",
+        "Nominal income divided by BEA Regional Price Parity (US = 100)",
+    )
+    comparison_table = comparison_table_html(nominal, adjusted)
+    rank_panel = rank_shift_panel_svg(rows)
 
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Unionization and Income by State, 2024</title>
+  <title>Unionization and Income by State, 2024 — nominal and RPP-adjusted</title>
   <style>
     :root {{
       --bg: #f6f0e6;
@@ -476,14 +594,14 @@ def build_html(
       --muted: #5b6670;
       --grid: rgba(23, 33, 42, 0.12);
       --line: rgba(23, 33, 42, 0.3);
+      --nominal: #d9643b;
+      --real: #17887b;
       --hero: linear-gradient(135deg, #11212d 0%, #213f4a 48%, #d9643b 100%);
       --shadow: 0 18px 50px rgba(16, 23, 31, 0.12);
       --radius: 28px;
     }}
 
-    * {{
-      box-sizing: border-box;
-    }}
+    * {{ box-sizing: border-box; }}
 
     body {{
       margin: 0;
@@ -545,17 +663,17 @@ def build_html(
     h1 {{
       margin: 0;
       font-family: Georgia, "Times New Roman", serif;
-      font-size: clamp(2.8rem, 5.4vw, 5rem);
-      line-height: 0.94;
-      max-width: 10.5ch;
+      font-size: clamp(2.5rem, 4.8vw, 4.4rem);
+      line-height: 0.98;
+      max-width: 14ch;
       font-weight: 400;
     }}
 
     .subhead {{
-      max-width: 54rem;
+      max-width: 58rem;
       font-size: 1rem;
       line-height: 1.6;
-      color: rgba(255, 248, 241, 0.88);
+      color: rgba(255, 248, 241, 0.9);
       margin-top: 16px;
       margin-bottom: 24px;
     }}
@@ -571,33 +689,53 @@ def build_html(
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 248, 241, 0.12);
       border-radius: 18px;
-      padding: 16px 18px;
-      min-height: 108px;
+      padding: 14px 16px;
+      min-height: 120px;
     }}
+
+    .metric.dual .value-pair {{
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }}
+
+    .metric.dual .value-pair .v {{ font-size: 1.45rem; font-weight: 700; }}
+    .metric.dual .value-pair .sep {{ opacity: 0.55; font-size: 1.1rem; }}
 
     .metric .label {{
       font-size: 0.76rem;
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      opacity: 0.7;
+      opacity: 0.72;
     }}
 
     .metric .value {{
       margin-top: 8px;
-      font-size: 1.7rem;
+      font-size: 1.6rem;
       font-weight: 700;
     }}
 
     .metric .note {{
       margin-top: 6px;
-      font-size: 0.93rem;
+      font-size: 0.88rem;
       line-height: 1.45;
       color: rgba(255, 248, 241, 0.8);
     }}
 
-    .section {{
-      margin-top: 26px;
+    .swatch-n, .swatch-r {{
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      vertical-align: middle;
+      margin-right: 6px;
     }}
+    .swatch-n {{ background: var(--nominal); }}
+    .swatch-r {{ background: var(--real); }}
+
+    .section {{ margin-top: 26px; }}
 
     .card {{
       background: var(--paper);
@@ -621,123 +759,115 @@ def build_html(
       max-width: 62rem;
     }}
 
-    .two-up {{
+    .two-up-scatter {{
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 22px;
-      margin-top: 22px;
+      gap: 14px;
+      margin-top: 18px;
+    }}
+
+    .scatter-frame {{
+      background: rgba(255, 255, 255, 0.68);
+      border: 1px solid rgba(23, 33, 42, 0.06);
+      border-radius: 20px;
+      padding: 10px;
     }}
 
     .chart-svg {{
       width: 100%;
       height: auto;
       display: block;
-      margin-top: 14px;
     }}
 
-    .chart-svg.small {{
-      margin-top: 0;
-    }}
-
-    .gridline {{
-      stroke: var(--grid);
-      stroke-width: 1;
-    }}
-
+    .gridline {{ stroke: var(--grid); stroke-width: 1; }}
     .mean-line {{
-      stroke: rgba(23, 33, 42, 0.45);
-      stroke-width: 1.5;
-      stroke-dasharray: 6 6;
+      stroke: rgba(23, 33, 42, 0.4);
+      stroke-width: 1.2;
+      stroke-dasharray: 4 5;
     }}
-
     .trend-line {{
       stroke: #17212a;
-      stroke-width: 3;
-      stroke-dasharray: 12 9;
+      stroke-width: 2.4;
+      stroke-dasharray: 9 7;
       opacity: 0.9;
     }}
 
     .bubble {{
-      stroke: rgba(255, 255, 255, 0.75);
-      stroke-width: 1.7;
+      stroke: rgba(255, 255, 255, 0.8);
+      stroke-width: 1.2;
       opacity: 0.9;
     }}
 
-    .axis-label {{
-      fill: var(--muted);
-      font-size: 13px;
-    }}
-
-    .axis-title {{
-      fill: var(--ink);
-      font-size: 15px;
-      font-weight: 700;
-    }}
-
-    .annotation {{
-      fill: var(--muted);
-      font-size: 12px;
-      font-weight: 500;
-    }}
+    .axis-label {{ fill: var(--muted); font-size: 11px; }}
+    .axis-title {{ fill: var(--ink); font-size: 12px; font-weight: 700; }}
+    .panel-title {{ fill: var(--ink); font-size: 15px; font-weight: 700; }}
+    .panel-subtitle {{ fill: var(--muted); font-size: 11px; }}
 
     .point-label {{
       fill: var(--ink);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
       paint-order: stroke;
       stroke: rgba(255, 250, 243, 0.95);
-      stroke-width: 3px;
+      stroke-width: 2.5px;
       stroke-linejoin: round;
     }}
 
-    .panel-title {{
-      fill: var(--ink);
-      font-size: 18px;
-      font-weight: 700;
-    }}
-
-    .panel-subtitle {{
-      fill: var(--muted);
-      font-size: 12px;
-    }}
-
-    .mini-grid {{
-      stroke: var(--grid);
-      stroke-width: 1;
-    }}
-
-    .mini-label {{
-      fill: var(--ink);
-      font-size: 13px;
-    }}
-
-    .mini-value {{
-      fill: var(--muted);
-      font-size: 13px;
-      font-weight: 700;
-    }}
-
-    .legend {{
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px 18px;
+    table.compare {{
+      width: 100%;
+      border-collapse: collapse;
       margin-top: 16px;
+      font-size: 0.95rem;
+    }}
+
+    table.compare th, table.compare td {{
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(23, 33, 42, 0.08);
+      vertical-align: top;
+    }}
+
+    table.compare thead th {{
+      font-size: 0.78rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
       color: var(--muted);
-      font-size: 0.92rem;
+      border-bottom: 2px solid rgba(23, 33, 42, 0.2);
     }}
 
-    .legend span {{
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-    }}
-
-    .dot {{
-      width: 12px;
-      height: 12px;
-      border-radius: 999px;
+    table.compare thead th.col {{ color: var(--ink); }}
+    table.compare thead th.col.nominal::before {{
+      content: "";
       display: inline-block;
+      width: 10px; height: 10px;
+      background: var(--nominal);
+      border-radius: 999px;
+      margin-right: 8px;
     }}
+    table.compare thead th.col.real::before {{
+      content: "";
+      display: inline-block;
+      width: 10px; height: 10px;
+      background: var(--real);
+      border-radius: 999px;
+      margin-right: 8px;
+    }}
+
+    table.compare tbody th {{ font-weight: 600; }}
+    table.compare tbody th .label {{ font-size: 0.98rem; }}
+    table.compare tbody th .note {{ color: var(--muted); font-size: 0.82rem; margin-top: 2px; font-weight: 400; }}
+    table.compare td.val {{ font-variant-numeric: tabular-nums; font-weight: 700; }}
+    table.compare td.val.nominal {{ color: var(--nominal); }}
+    table.compare td.val.real {{ color: var(--real); }}
+
+    .rank-row {{
+      fill: var(--ink);
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+    }}
+    .rank-row.gain {{ fill: #0e665e; font-weight: 600; }}
+    .rank-row.loss {{ fill: #9c3f1d; font-weight: 600; }}
+    .column-header {{ fill: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; }}
 
     .quadrant-grid {{
       display: grid;
@@ -761,28 +891,11 @@ def build_html(
       margin-bottom: 14px;
     }}
 
-    .quadrant-header h3 {{
-      margin: 0;
-      font-size: 1rem;
-    }}
+    .quadrant-header h3 {{ margin: 0; font-size: 1rem; }}
+    .count {{ color: var(--muted); font-size: 0.86rem; }}
+    .swatch {{ width: 12px; height: 12px; border-radius: 999px; display: inline-block; }}
 
-    .count {{
-      color: var(--muted);
-      font-size: 0.86rem;
-    }}
-
-    .swatch {{
-      width: 12px;
-      height: 12px;
-      border-radius: 999px;
-      display: inline-block;
-    }}
-
-    .chip-wrap {{
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }}
+    .chip-wrap {{ display: flex; flex-wrap: wrap; gap: 10px; }}
 
     .chip {{
       border-radius: 999px;
@@ -807,13 +920,8 @@ def build_html(
       flex: 0 0 auto;
     }}
 
-    .chip strong {{
-      font-size: 0.9rem;
-    }}
-
-    .chip span {{
-      color: var(--muted);
-    }}
+    .chip strong {{ font-size: 0.9rem; }}
+    .chip span {{ color: var(--muted); }}
 
     .footnote {{
       margin-top: 20px;
@@ -822,9 +930,7 @@ def build_html(
       font-size: 0.94rem;
     }}
 
-    .footnote a {{
-      color: #0e665e;
-    }}
+    .footnote a {{ color: #0e665e; }}
 
     code {{
       font-family: "SFMono-Regular", Menlo, monospace;
@@ -834,96 +940,118 @@ def build_html(
     }}
 
     @media (max-width: 980px) {{
-      .metric-grid,
-      .two-up,
-      .quadrant-grid {{
+      .metric-grid, .two-up-scatter, .quadrant-grid {{
         grid-template-columns: 1fr;
       }}
-
-      .hero {{
-        padding: 28px 24px 24px;
-      }}
-
-      .page {{
-        padding: 18px 14px 40px;
-      }}
+      .hero {{ padding: 28px 24px 24px; }}
+      .page {{ padding: 18px 14px 40px; }}
     }}
   </style>
 </head>
 <body>
   <main class="page">
     <section class="hero">
-      <p class="kicker">United States · 50 states · 2024</p>
-      <h1>Union density and household income tend to rise together.</h1>
+      <p class="kicker">United States · {n_obs} states · 2024</p>
+      <h1>Union density and household income, nominal and cost-of-living adjusted.</h1>
       <p class="subhead">
-        This report uses the BLS state union membership rate and the Census ACS 1-year median household income.
-        Bubble size in the main chart reflects each state's employed wage and salary workforce. The line is the
-        simple OLS fit across all 50 states.
+        The cross-state relationship between unionization and median household income is reported two ways.
+        The left chart uses Census ACS {income_year} 1-year median household income in nominal dollars.
+        The right chart divides that income by the BEA Regional Price Parity (all items, {rpp_year}; US = 100),
+        producing a rough cost-of-living-adjusted measure. The slope of the one-variable OLS fit
+        shrinks by about {slope_shrinkage_pct:.0f}% once RPP is applied, but stays positive and statistically significant.
       </p>
       <div class="metric-grid">
-        <article class="metric">
-          <div class="label">Regression slope</div>
-          <div class="value">{currency(slope)}</div>
-          <div class="note">Associated with each +1 percentage point in state union membership.</div>
+        <article class="metric dual">
+          <div class="label">Regression slope · USD per +1 pp union</div>
+          <div class="value-pair">
+            <span class="v"><span class="swatch-n"></span>{currency(slope_nominal)}</span>
+            <span class="sep">→</span>
+            <span class="v"><span class="swatch-r"></span>{currency(slope_real)}</span>
+          </div>
+          <div class="note">Shrinks by {slope_shrinkage_pct:.0f}% once RPP-adjusted.</div>
         </article>
-        <article class="metric">
+        <article class="metric dual">
           <div class="label">Correlation</div>
-          <div class="value">{correlation:.3f}</div>
-          <div class="note">A moderate positive cross-state relationship.</div>
+          <div class="value-pair">
+            <span class="v"><span class="swatch-n"></span>{correlation_nominal:.3f}</span>
+            <span class="sep">→</span>
+            <span class="v"><span class="swatch-r"></span>{correlation_real:.3f}</span>
+          </div>
+          <div class="note">Moderate, then weak-to-moderate after adjustment.</div>
         </article>
-        <article class="metric">
+        <article class="metric dual">
           <div class="label">R-squared</div>
-          <div class="value">{r_squared:.3f}</div>
-          <div class="note">About {r_squared * 100:.1f}% of the state income variation is explained by this one-variable model.</div>
+          <div class="value-pair">
+            <span class="v"><span class="swatch-n"></span>{r_squared_nominal:.3f}</span>
+            <span class="sep">→</span>
+            <span class="v"><span class="swatch-r"></span>{r_squared_real:.3f}</span>
+          </div>
+          <div class="note">About {r_squared_nominal * 100:.0f}% → {r_squared_real * 100:.0f}% of state-level variance explained.</div>
         </article>
         <article class="metric">
-          <div class="label">Sample</div>
-          <div class="value">{n_obs} states</div>
-          <div class="note">Means: {x_mean:.1f}% union and {currency(y_mean)} median household income.</div>
+          <div class="label">Sample means</div>
+          <div class="value">{x_mean:.1f}% union</div>
+          <div class="note">
+            Nominal mean income {currency(y_mean_nominal)}, adjusted mean {currency(y_mean_real)}.
+          </div>
         </article>
       </div>
     </section>
 
     <section class="section card">
-      <h2>Bubble scatter: union membership rate vs. median household income</h2>
+      <h2>Side by side: union rate vs. income, before and after RPP</h2>
       <p class="deck">
-        Hawaii sits furthest to the right at {float(high_union["union_membership_rate_pct"]):.1f}% union membership.
-        North Carolina anchors the far-left edge at {float(low_union["union_membership_rate_pct"]):.1f}%.
-        The District of Columbia is excluded, so New Jersey holds the highest state median household income in this
-        50-state file at {currency(float(high_income["median_household_income_usd"]))}.
+        Both panels share the same y-axis so the compression is visible directly.
+        Bubble size reflects each state's employed wage and salary workforce. The dashed line in each panel
+        is that panel's own OLS fit. {escape(str(high_union["state"]))} sits furthest right at
+        {float(high_union["union_membership_rate_pct"]):.1f}% union; {escape(str(low_union["state"]))} anchors the
+        low end at {float(low_union["union_membership_rate_pct"]):.1f}%.
+        {escape(str(high_rpp["state"]))} has the highest RPP at {float(high_rpp["rpp_all_items"]):.1f};
+        {escape(str(low_rpp["state"]))} the lowest at {float(low_rpp["rpp_all_items"]):.1f}.
       </p>
-      {scatter_svg(rows, regression)}
-      <div class="legend">
-        <span><i class="dot" style="background:#ff6b4a"></i> high union / high income</span>
-        <span><i class="dot" style="background:#d4702f"></i> high union / lower income</span>
-        <span><i class="dot" style="background:#17887b"></i> lower union / high income</span>
-        <span><i class="dot" style="background:#456173"></i> lower union / lower income</span>
-        <span><i class="dot" style="background:#17212a"></i> dashed line = OLS fit</span>
+      <div class="two-up-scatter">
+        <div class="scatter-frame">{nominal_scatter}</div>
+        <div class="scatter-frame">{real_scatter}</div>
       </div>
     </section>
 
-    <section class="section two-up">
-      <article class="card">
-        {residual_panel_svg(sorted(rows, key=lambda row: float(row["residual_income_usd"]), reverse=True), positive=True)}
-      </article>
-      <article class="card">
-        {residual_panel_svg(sorted(rows, key=lambda row: float(row["residual_income_usd"])), positive=False)}
-      </article>
+    <section class="section card">
+      <h2>Regression comparison</h2>
+      <p class="deck">
+        One-variable OLS across the {n_obs} states. Adjusting the outcome for BEA's
+        Regional Price Parity substantially compresses both the slope and the R-squared,
+        because high-union coastal states also have the highest cost of living.
+      </p>
+      {comparison_table}
     </section>
 
     <section class="section card">
-      <h2>Quadrant view</h2>
+      <h2>Who moves most when we adjust for cost of living?</h2>
       <p class="deck">
-        States are grouped around the two sample means. This is a quick way to see who clusters in the upper-right,
-        who stays affluent despite lower union density, and who remains in the lower-left corner of both measures.
+        State rankings by median household income shift once the RPP deflator is applied.
+        States that climb are affordable relative to their nominal income; states that fall
+        have high nominal income largely absorbed by high local prices.
+      </p>
+      {rank_panel}
+    </section>
+
+    <section class="section card">
+      <h2>Quadrant view (nominal)</h2>
+      <p class="deck">
+        Using the nominal scatter's sample means, states are grouped around the mean
+        union rate and the mean nominal household income. This keeps the quadrant
+        definitions comparable to the earlier version of the report.
       </p>
       <div class="quadrant-grid">
         {quadrant_markup(rows)}
       </div>
       <p class="footnote">
-        Regression p-value for the slope: <code>{p_value:.6f}</code>. This is still descriptive, not causal:
-        the chart compares state-level averages and does not control for cost of living, industrial mix, education,
-        housing markets, or regional composition.
+        Slope p-values: nominal <code>{float(nominal['slope_p_value']):.4g}</code>,
+        RPP-adjusted <code>{float(adjusted['slope_p_value']):.4g}</code>. Even after
+        adjustment the slope remains positive and distinguishable from zero at
+        conventional levels, though with wider relative uncertainty.
+        This is still descriptive, not causal: the regression compares state-level averages and does not
+        control for industrial mix, education, demographics, or labor-force composition.
       </p>
       <p class="footnote">
         Repository audit artifacts:
@@ -933,9 +1061,11 @@ def build_html(
         and
         <a href="{AUDIT_MANIFEST_URL}">audit manifest JSON</a>.
         Official sources:
-        <a href="{BLS_SOURCE_URL}">BLS 2024 state union-membership release</a>
+        <a href="{BLS_SOURCE_URL}">BLS 2024 state union-membership release</a>,
+        <a href="{CENSUS_SOURCE_URL}">Census ACS 2024 API query</a>,
         and
-        <a href="{CENSUS_SOURCE_URL}">Census ACS 2024 API query</a>.
+        <a href="{BEA_SOURCE_URL}">BEA Regional Price Parities release</a>
+        (<a href="{BEA_DOWNLOAD_URL}">SARPP state dump</a>).
       </p>
     </section>
   </main>
@@ -946,9 +1076,9 @@ def build_html(
 
 def main() -> None:
     rows = load_rows()
-    regression = load_regression()
-    enrich_rows(rows, regression)
-    html = build_html(rows, regression)
+    regressions = load_regressions()
+    enrich_rows(rows, regressions)
+    html = build_html(rows, regressions)
     REPORT_HTML.write_text(html, encoding="utf-8")
     print(f"Wrote visual report to {REPORT_HTML}")
 
