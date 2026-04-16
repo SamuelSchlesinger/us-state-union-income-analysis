@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Unionization and Income by State, 2024</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f6f0e6;
+      --paper: rgba(255, 250, 243, 0.86);
+      --ink: #17212a;
+      --muted: #5b6670;
+      --grid: rgba(23, 33, 42, 0.12);
+      --line: rgba(23, 33, 42, 0.3);
+      --hero: linear-gradient(135deg, #11212d 0%, #213f4a 48%, #d9643b 100%);
+      --shadow: 0 18px 50px rgba(16, 23, 31, 0.12);
+      --radius: 28px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,0.72), transparent 32%),
+        linear-gradient(180deg, #fbf6ef 0%, var(--bg) 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(23, 33, 42, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(23, 33, 42, 0.025) 1px, transparent 1px);
+      background-size: 26px 26px;
+      pointer-events: none;
+      mask-image: linear-gradient(180deg, rgba(0,0,0,0.35), transparent 70%);
+    }
+
+    .page {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 22px 56px;
+      position: relative;
+    }
+
+    .hero {
+      background: var(--hero);
+      border-radius: 36px;
+      padding: 34px 34px 28px;
+      color: #fff8f1;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 420px;
+      height: 420px;
+      right: -110px;
+      top: -150px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,255,255,0.18), transparent 68%);
+    }
+
+    .kicker {
+      margin: 0 0 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 0.78rem;
+      opacity: 0.85;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: "Instrument Serif", Georgia, serif;
+      font-size: clamp(2.8rem, 5.4vw, 5rem);
+      line-height: 0.94;
+      max-width: 10.5ch;
+      font-weight: 400;
+    }
+
+    .subhead {
+      max-width: 54rem;
+      font-size: 1rem;
+      line-height: 1.6;
+      color: rgba(255, 248, 241, 0.88);
+      margin-top: 16px;
+      margin-bottom: 24px;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .metric {
+      background: rgba(255, 248, 241, 0.12);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 248, 241, 0.12);
+      border-radius: 18px;
+      padding: 16px 18px;
+      min-height: 108px;
+    }
+
+    .metric .label {
+      font-size: 0.76rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+
+    .metric .value {
+      margin-top: 8px;
+      font-size: 1.7rem;
+      font-weight: 700;
+    }
+
+    .metric .note {
+      margin-top: 6px;
+      font-size: 0.93rem;
+      line-height: 1.45;
+      color: rgba(255, 248, 241, 0.8);
+    }
+
+    .section {
+      margin-top: 26px;
+    }
+
+    .card {
+      background: var(--paper);
+      border: 1px solid rgba(23, 33, 42, 0.08);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px 24px 18px;
+      backdrop-filter: blur(8px);
+    }
+
+    .card h2 {
+      margin: 0;
+      font-size: 1.2rem;
+      line-height: 1.2;
+    }
+
+    .card .deck {
+      margin: 10px 0 0;
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 62rem;
+    }
+
+    .two-up {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 22px;
+      margin-top: 22px;
+    }
+
+    .chart-svg {
+      width: 100%;
+      height: auto;
+      display: block;
+      margin-top: 14px;
+    }
+
+    .chart-svg.small {
+      margin-top: 0;
+    }
+
+    .gridline {
+      stroke: var(--grid);
+      stroke-width: 1;
+    }
+
+    .mean-line {
+      stroke: rgba(23, 33, 42, 0.45);
+      stroke-width: 1.5;
+      stroke-dasharray: 6 6;
+    }
+
+    .trend-line {
+      stroke: #17212a;
+      stroke-width: 3;
+      stroke-dasharray: 12 9;
+      opacity: 0.9;
+    }
+
+    .bubble {
+      stroke: rgba(255, 255, 255, 0.75);
+      stroke-width: 1.7;
+      opacity: 0.9;
+    }
+
+    .axis-label {
+      fill: var(--muted);
+      font-size: 13px;
+    }
+
+    .axis-title {
+      fill: var(--ink);
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .annotation {
+      fill: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .point-label {
+      fill: var(--ink);
+      font-size: 12px;
+      font-weight: 700;
+      paint-order: stroke;
+      stroke: rgba(255, 250, 243, 0.95);
+      stroke-width: 3px;
+      stroke-linejoin: round;
+    }
+
+    .panel-title {
+      fill: var(--ink);
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .panel-subtitle {
+      fill: var(--muted);
+      font-size: 12px;
+    }
+
+    .mini-grid {
+      stroke: var(--grid);
+      stroke-width: 1;
+    }
+
+    .mini-label {
+      fill: var(--ink);
+      font-size: 13px;
+    }
+
+    .mini-value {
+      fill: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .quadrant-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .quadrant-card {
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.58);
+      border: 1px solid rgba(23, 33, 42, 0.08);
+      padding: 18px;
+    }
+
+    .quadrant-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .quadrant-header h3 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .count {
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .chip-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .chip {
+      border-radius: 999px;
+      border: 1px solid rgba(23, 33, 42, 0.08);
+      background: rgba(255, 255, 255, 0.74);
+      padding: 8px 12px 8px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+      font-size: 0.88rem;
+    }
+
+    .chip::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--chip-accent);
+      display: inline-block;
+      flex: 0 0 auto;
+    }
+
+    .chip strong {
+      font-size: 0.9rem;
+    }
+
+    .chip span {
+      color: var(--muted);
+    }
+
+    .footnote {
+      margin-top: 20px;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 0.94rem;
+    }
+
+    code {
+      font-family: "SFMono-Regular", Menlo, monospace;
+      background: rgba(23, 33, 42, 0.08);
+      padding: 0.15rem 0.35rem;
+      border-radius: 6px;
+    }
+
+    @media (max-width: 980px) {
+      .metric-grid,
+      .two-up,
+      .quadrant-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        padding: 28px 24px 24px;
+      }
+
+      .page {
+        padding: 18px 14px 40px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <p class="kicker">United States · 50 states · 2024</p>
+      <h1>Union density and household income tend to rise together.</h1>
+      <p class="subhead">
+        This report uses the BLS state union membership rate and the Census ACS 1-year median household income.
+        Bubble size in the main chart reflects each state's employed wage and salary workforce. The line is the
+        simple OLS fit across all 50 states.
+      </p>
+      <div class="metric-grid">
+        <article class="metric">
+          <div class="label">Regression slope</div>
+          <div class="value">$1,256</div>
+          <div class="note">Associated with each +1 percentage point in state union membership.</div>
+        </article>
+        <article class="metric">
+          <div class="label">Correlation</div>
+          <div class="value">0.540</div>
+          <div class="note">A moderate positive cross-state relationship.</div>
+        </article>
+        <article class="metric">
+          <div class="label">R-squared</div>
+          <div class="value">0.292</div>
+          <div class="note">About 29.2% of the state income variation is explained by this one-variable model.</div>
+        </article>
+        <article class="metric">
+          <div class="label">Sample</div>
+          <div class="value">50 states</div>
+          <div class="note">Means: 9.5% union and $80,903 median household income.</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section card">
+      <h2>Bubble scatter: union membership rate vs. median household income</h2>
+      <p class="deck">
+        Hawaii sits furthest to the right at 26.5% union membership.
+        North Carolina anchors the far-left edge at 2.4%.
+        The District of Columbia is excluded, so New Jersey holds the highest state median household income in this
+        50-state file at $104,828.
+      </p>
+      <svg viewBox="0 0 1060 620" class="chart-svg" role="img" aria-label="Scatterplot of state unionization and median income">
+<rect x="90.0" y="40.0" width="283.0" height="268.8" fill="#d4f1ea" opacity="0.35"/>
+<rect x="373.0" y="40.0" width="651.0" height="268.8" fill="#ffe4d9" opacity="0.35"/>
+<rect x="90.0" y="308.8" width="283.0" height="239.2" fill="#dde8ef" opacity="0.35"/>
+<rect x="373.0" y="308.8" width="651.0" height="239.2" fill="#ffe9d5" opacity="0.35"/>
+<line x1="128.6" y1="40" x2="128.6" y2="548" class="gridline"/>
+<text x="128.6" y="576" class="axis-label" text-anchor="middle">2.5%</text>
+<line x1="216.4" y1="40" x2="216.4" y2="548" class="gridline"/>
+<text x="216.4" y="576" class="axis-label" text-anchor="middle">5.0%</text>
+<line x1="304.2" y1="40" x2="304.2" y2="548" class="gridline"/>
+<text x="304.2" y="576" class="axis-label" text-anchor="middle">7.5%</text>
+<line x1="392.0" y1="40" x2="392.0" y2="548" class="gridline"/>
+<text x="392.0" y="576" class="axis-label" text-anchor="middle">10.0%</text>
+<line x1="479.8" y1="40" x2="479.8" y2="548" class="gridline"/>
+<text x="479.8" y="576" class="axis-label" text-anchor="middle">12.5%</text>
+<line x1="567.5" y1="40" x2="567.5" y2="548" class="gridline"/>
+<text x="567.5" y="576" class="axis-label" text-anchor="middle">15.0%</text>
+<line x1="655.3" y1="40" x2="655.3" y2="548" class="gridline"/>
+<text x="655.3" y="576" class="axis-label" text-anchor="middle">17.5%</text>
+<line x1="743.1" y1="40" x2="743.1" y2="548" class="gridline"/>
+<text x="743.1" y="576" class="axis-label" text-anchor="middle">20.0%</text>
+<line x1="830.9" y1="40" x2="830.9" y2="548" class="gridline"/>
+<text x="830.9" y="576" class="axis-label" text-anchor="middle">22.5%</text>
+<line x1="918.7" y1="40" x2="918.7" y2="548" class="gridline"/>
+<text x="918.7" y="576" class="axis-label" text-anchor="middle">25.0%</text>
+<line x1="90" y1="501.8" x2="1024" y2="501.8" class="gridline"/>
+<text x="76" y="506.8" class="axis-label" text-anchor="end">60k</text>
+<line x1="90" y1="409.5" x2="1024" y2="409.5" class="gridline"/>
+<text x="76" y="414.5" class="axis-label" text-anchor="end">70k</text>
+<line x1="90" y1="317.1" x2="1024" y2="317.1" class="gridline"/>
+<text x="76" y="322.1" class="axis-label" text-anchor="end">80k</text>
+<line x1="90" y1="224.7" x2="1024" y2="224.7" class="gridline"/>
+<text x="76" y="229.7" class="axis-label" text-anchor="end">90k</text>
+<line x1="90" y1="132.4" x2="1024" y2="132.4" class="gridline"/>
+<text x="76" y="137.4" class="axis-label" text-anchor="end">100k</text>
+<line x1="90" y1="40.0" x2="1024" y2="40.0" class="gridline"/>
+<text x="76" y="45.0" class="axis-label" text-anchor="end">110k</text>
+<line x1="90" y1="308.8" x2="1024" y2="308.8" class="mean-line"/>
+<line x1="373.0" y1="40" x2="373.0" y2="548" class="mean-line"/>
+<text x="1020" y="298.8" class="annotation" text-anchor="end">mean income $80,903</text>
+<text x="381.0" y="58" class="annotation">mean union 9.5%</text>
+<line x1="90.0" y1="402.3" x2="1024.0" y2="93.6" class="trend-line"/>
+<circle cx="272.6" cy="440.3" r="10.8" fill="#456173" class="bubble"><title>Alabama: 6.6% union, $66,659, 2,110,000 wage and salary workers</title></circle>
+<circle cx="662.3" cy="172.4" r="6.2" fill="#ff6b4a" class="bubble"><title>Alaska: 17.7% union, $95,665, 300,000 wage and salary workers</title></circle>
+<circle cx="170.8" cy="303.4" r="12.4" fill="#17887b" class="bubble"><title>Arizona: 3.7% union, $81,486, 3,183,000 wage and salary workers</title></circle>
+<circle cx="163.7" cy="482.4" r="9.1" fill="#456173" class="bubble"><title>Arkansas: 3.5% union, $62,106, 1,265,000 wage and salary workers</title></circle>
+<circle cx="550.0" cy="131.0" r="23.7" fill="#ff6b4a" class="bubble"><title>California: 14.5% union, $100,149, 16,399,000 wage and salary workers</title></circle>
+<circle cx="311.2" cy="159.0" r="11.7" fill="#17887b" class="bubble"><title>Colorado: 7.7% union, $97,113, 2,671,000 wage and salary workers</title></circle>
+<circle cx="620.2" cy="168.9" r="9.9" fill="#ff6b4a" class="bubble"><title>Connecticut: 16.5% union, $96,049, 1,634,000 wage and salary workers</title></circle>
+<circle cx="339.3" cy="247.5" r="6.8" fill="#17887b" class="bubble"><title>Delaware: 8.5% union, $87,534, 435,000 wage and salary workers</title></circle>
+<circle cx="219.9" cy="338.0" r="18.6" fill="#456173" class="bubble"><title>Florida: 5.1% union, $77,735, 9,086,000 wage and salary workers</title></circle>
+<circle cx="174.3" cy="317.2" r="14.2" fill="#456173" class="bubble"><title>Georgia: 3.8% union, $79,991, 4,619,000 wage and salary workers</title></circle>
+<circle cx="971.3" cy="125.5" r="7.2" fill="#ff6b4a" class="bubble"><title>Hawaii: 26.5% union, $100,745, 556,000 wage and salary workers</title></circle>
+<circle cx="216.4" cy="306.3" r="8.1" fill="#17887b" class="bubble"><title>Idaho: 5.0% union, $81,166, 850,000 wage and salary workers</title></circle>
+<circle cx="500.8" cy="287.4" r="15.3" fill="#ff6b4a" class="bubble"><title>Illinois: 13.1% union, $83,211, 5,615,000 wage and salary workers</title></circle>
+<circle cx="356.9" cy="391.4" r="12.2" fill="#456173" class="bubble"><title>Indiana: 9.0% union, $71,959, 2,999,000 wage and salary workers</title></circle>
+<circle cx="265.6" cy="358.6" r="9.5" fill="#456173" class="bubble"><title>Iowa: 6.4% union, $75,501, 1,437,000 wage and salary workers</title></circle>
+<circle cx="262.1" cy="358.5" r="9.2" fill="#456173" class="bubble"><title>Kansas: 6.3% union, $75,514, 1,309,000 wage and salary workers</title></circle>
+<circle cx="349.8" cy="460.0" r="10.1" fill="#456173" class="bubble"><title>Kentucky: 8.8% union, $64,526, 1,761,000 wage and salary workers</title></circle>
+<circle cx="177.8" cy="492.7" r="10.1" fill="#456173" class="bubble"><title>Louisiana: 3.9% union, $60,986, 1,741,000 wage and salary workers</title></circle>
+<circle cx="500.8" cy="350.0" r="7.3" fill="#d4702f" class="bubble"><title>Maine: 13.1% union, $76,442, 585,000 wage and salary workers</title></circle>
+<circle cx="441.1" cy="105.5" r="11.9" fill="#ff6b4a" class="bubble"><title>Maryland: 11.4% union, $102,905, 2,851,000 wage and salary workers</title></circle>
+<circle cx="553.5" cy="87.8" r="12.7" fill="#ff6b4a" class="bubble"><title>Massachusetts: 14.6% union, $104,828, 3,397,000 wage and salary workers</title></circle>
+<circle cx="511.4" cy="387.4" r="13.9" fill="#d4702f" class="bubble"><title>Michigan: 13.4% union, $72,389, 4,346,000 wage and salary workers</title></circle>
+<circle cx="539.4" cy="251.4" r="11.7" fill="#ff6b4a" class="bubble"><title>Minnesota: 14.2% union, $87,117, 2,668,000 wage and salary workers</title></circle>
+<circle cx="223.4" cy="509.9" r="8.8" fill="#456173" class="bubble"><title>Mississippi: 5.2% union, $59,127, 1,129,000 wage and salary workers</title></circle>
+<circle cx="342.8" cy="394.8" r="11.8" fill="#456173" class="bubble"><title>Missouri: 8.6% union, $71,589, 2,734,000 wage and salary workers</title></circle>
+<circle cx="458.7" cy="360.1" r="6.9" fill="#d4702f" class="bubble"><title>Montana: 11.9% union, $75,340, 474,000 wage and salary workers</title></circle>
+<circle cx="279.6" cy="350.6" r="8.3" fill="#456173" class="bubble"><title>Nebraska: 6.8% union, $76,376, 913,000 wage and salary workers</title></circle>
+<circle cx="465.7" cy="306.6" r="9.3" fill="#ff6b4a" class="bubble"><title>Nevada: 12.1% union, $81,134, 1,367,000 wage and salary workers</title></circle>
+<circle cx="363.9" cy="134.4" r="7.6" fill="#17887b" class="bubble"><title>New Hampshire: 9.2% union, $99,782, 678,000 wage and salary workers</title></circle>
+<circle cx="609.7" cy="92.7" r="13.7" fill="#ff6b4a" class="bubble"><title>New Jersey: 16.2% union, $104,294, 4,197,000 wage and salary workers</title></circle>
+<circle cx="304.2" cy="429.6" r="8.1" fill="#456173" class="bubble"><title>New Mexico: 7.5% union, $67,816, 834,000 wage and salary workers</title></circle>
+<circle cx="764.2" cy="263.3" r="17.9" fill="#ff6b4a" class="bubble"><title>New York: 20.6% union, $85,820, 8,278,000 wage and salary workers</title></circle>
+<circle cx="125.1" cy="372.9" r="14.2" fill="#456173" class="bubble"><title>North Carolina: 2.4% union, $73,958, 4,555,000 wage and salary workers</title></circle>
+<circle cx="216.4" cy="336.8" r="6.5" fill="#456173" class="bubble"><title>North Dakota: 5.0% union, $77,871, 366,000 wage and salary workers</title></circle>
+<circle cx="465.7" cy="389.0" r="14.8" fill="#d4702f" class="bubble"><title>Ohio: 12.1% union, $72,212, 5,147,000 wage and salary workers</title></circle>
+<circle cx="226.9" cy="445.0" r="10.0" fill="#456173" class="bubble"><title>Oklahoma: 5.3% union, $66,148, 1,713,000 wage and salary workers</title></circle>
+<circle cx="599.1" cy="268.9" r="10.3" fill="#ff6b4a" class="bubble"><title>Oregon: 15.9% union, $85,220, 1,835,000 wage and salary workers</title></circle>
+<circle cx="451.7" cy="339.8" r="15.4" fill="#d4702f" class="bubble"><title>Pennsylvania: 11.7% union, $77,545, 5,706,000 wage and salary workers</title></circle>
+<circle cx="550.0" cy="284.7" r="7.0" fill="#ff6b4a" class="bubble"><title>Rhode Island: 14.5% union, $83,504, 500,000 wage and salary workers</title></circle>
+<circle cx="139.2" cy="387.7" r="10.9" fill="#456173" class="bubble"><title>South Carolina: 2.8% union, $72,350, 2,163,000 wage and salary workers</title></circle>
+<circle cx="135.6" cy="345.9" r="6.8" fill="#456173" class="bubble"><title>South Dakota: 2.7% union, $76,881, 431,000 wage and salary workers</title></circle>
+<circle cx="205.9" cy="391.0" r="12.0" fill="#456173" class="bubble"><title>Tennessee: 4.7% union, $71,997, 2,923,000 wage and salary workers</title></circle>
+<circle cx="198.8" cy="319.7" r="21.8" fill="#456173" class="bubble"><title>Texas: 4.5% union, $79,721, 13,345,000 wage and salary workers</title></circle>
+<circle cx="170.8" cy="163.2" r="9.7" fill="#17887b" class="bubble"><title>Utah: 3.7% union, $96,658, 1,558,000 wage and salary workers</title></circle>
+<circle cx="543.0" cy="291.9" r="6.2" fill="#ff6b4a" class="bubble"><title>Vermont: 14.3% union, $82,730, 297,000 wage and salary workers</title></circle>
+<circle cx="223.4" cy="205.4" r="13.5" fill="#17887b" class="bubble"><title>Virginia: 5.2% union, $92,090, 3,997,000 wage and salary workers</title></circle>
+<circle cx="602.6" cy="138.0" r="12.8" fill="#ff6b4a" class="bubble"><title>Washington: 16.0% union, $99,389, 3,432,000 wage and salary workers</title></circle>
+<circle cx="349.8" cy="494.4" r="7.7" fill="#456173" class="bubble"><title>West Virginia: 8.8% union, $60,798, 699,000 wage and salary workers</title></circle>
+<circle cx="265.6" cy="340.3" r="11.9" fill="#456173" class="bubble"><title>Wisconsin: 6.4% union, $77,488, 2,819,000 wage and salary workers</title></circle>
+<circle cx="237.5" cy="358.4" r="6.0" fill="#456173" class="bubble"><title>Wyoming: 5.6% union, $75,532, 249,000 wage and salary workers</title></circle>
+<text x="652.3" y="160.4" class="point-label" text-anchor="end">AK</text>
+<text x="173.7" y="500.4" class="point-label" text-anchor="start">AR</text>
+<text x="540.0" y="119.0" class="point-label" text-anchor="end">CA</text>
+<text x="610.2" y="156.9" class="point-label" text-anchor="end">CT</text>
+<text x="961.3" y="113.5" class="point-label" text-anchor="end">HI</text>
+<text x="359.8" y="478.0" class="point-label" text-anchor="start">KY</text>
+<text x="187.8" y="510.7" class="point-label" text-anchor="start">LA</text>
+<text x="431.1" y="93.5" class="point-label" text-anchor="end">MD</text>
+<text x="543.5" y="75.8" class="point-label" text-anchor="end">MA</text>
+<text x="233.4" y="527.9" class="point-label" text-anchor="start">MS</text>
+<text x="373.9" y="122.4" class="point-label" text-anchor="start">NH</text>
+<text x="599.7" y="80.7" class="point-label" text-anchor="end">NJ</text>
+<text x="754.2" y="251.3" class="point-label" text-anchor="end">NY</text>
+<text x="135.1" y="390.9" class="point-label" text-anchor="start">NC</text>
+<text x="149.2" y="405.7" class="point-label" text-anchor="start">SC</text>
+<text x="145.6" y="363.9" class="point-label" text-anchor="start">SD</text>
+<text x="208.8" y="337.7" class="point-label" text-anchor="start">TX</text>
+<text x="180.8" y="151.2" class="point-label" text-anchor="start">UT</text>
+<text x="359.8" y="512.4" class="point-label" text-anchor="start">WV</text>
+<text x="530.0" y="602" class="axis-title" text-anchor="middle">Union membership rate of employed wage and salary workers</text>
+<text x="24" y="310.0" class="axis-title" text-anchor="middle" transform="rotate(-90 24 310.0)">Median household income (USD)</text>
+</svg>
+      <div class="legend">
+        <span><i class="dot" style="background:#ff6b4a"></i> high union / high income</span>
+        <span><i class="dot" style="background:#d4702f"></i> high union / lower income</span>
+        <span><i class="dot" style="background:#17887b"></i> lower union / high income</span>
+        <span><i class="dot" style="background:#456173"></i> lower union / lower income</span>
+        <span><i class="dot" style="background:#17212a"></i> dashed line = OLS fit</span>
+      </div>
+    </section>
+
+    <section class="section two-up">
+      <article class="card">
+        <svg viewBox="0 0 500 374" class="chart-svg small" role="img" aria-label="Above the line residual chart">
+<text x="130" y="20" class="panel-title">Above the line</text>
+<text x="130" y="40" class="panel-subtitle">Higher income than the simple model predicts</text>
+<line x1="130" y1="54.0" x2="468" y2="54.0" class="mini-grid"/>
+<text x="118" y="59.0" class="mini-label" text-anchor="end">Utah</text>
+<rect x="130" y="44.0" width="301.8" height="18" rx="9" fill="#17887b" opacity="0.9"/>
+<text x="441.8" y="59.0" class="mini-value">$23.0k</text>
+<line x1="130" y1="92.0" x2="468" y2="92.0" class="mini-grid"/>
+<text x="118" y="97.0" class="mini-label" text-anchor="end">Maryland</text>
+<rect x="130" y="82.0" width="256.8" height="18" rx="9" fill="#17887b" opacity="0.9"/>
+<text x="396.8" y="97.0" class="mini-value">$19.6k</text>
+<line x1="130" y1="130.0" x2="468" y2="130.0" class="mini-grid"/>
+<text x="118" y="135.0" class="mini-label" text-anchor="end">New Hampshire</text>
+<rect x="130" y="120.0" width="252.1" height="18" rx="9" fill="#17887b" opacity="0.9"/>
+<text x="392.1" y="135.0" class="mini-value">$19.2k</text>
+<line x1="130" y1="168.0" x2="468" y2="168.0" class="mini-grid"/>
+<text x="118" y="173.0" class="mini-label" text-anchor="end">Colorado</text>
+<rect x="130" y="158.0" width="241.8" height="18" rx="9" fill="#17887b" opacity="0.9"/>
+<text x="381.8" y="173.0" class="mini-value">$18.4k</text>
+<line x1="130" y1="206.0" x2="468" y2="206.0" class="mini-grid"/>
+<text x="118" y="211.0" class="mini-label" text-anchor="end">Massachusetts</text>
+<rect x="130" y="196.0" width="229.3" height="18" rx="9" fill="#17887b" opacity="0.9"/>
+<text x="369.3" y="211.0" class="mini-value">$17.5k</text>
+<line x1="130" y1="244.0" x2="468" y2="244.0" class="mini-grid"/>
+<text x="118" y="249.0" class="mini-label" text-anchor="end">Virginia</text>
+<rect x="130" y="234.0" width="217.1" height="18" rx="9" fill="#17887b" opacity="0.9"/>
+<text x="357.1" y="249.0" class="mini-value">$16.5k</text>
+<line x1="130" y1="282.0" x2="468" y2="282.0" class="mini-grid"/>
+<text x="118" y="287.0" class="mini-label" text-anchor="end">New Jersey</text>
+<rect x="130" y="272.0" width="195.9" height="18" rx="9" fill="#17887b" opacity="0.9"/>
+<text x="335.9" y="287.0" class="mini-value">$14.9k</text>
+<line x1="130" y1="320.0" x2="468" y2="320.0" class="mini-grid"/>
+<text x="118" y="325.0" class="mini-label" text-anchor="end">California</text>
+<rect x="130" y="310.0" width="169.5" height="18" rx="9" fill="#17887b" opacity="0.9"/>
+<text x="309.5" y="325.0" class="mini-value">$12.9k</text>
+</svg>
+      </article>
+      <article class="card">
+        <svg viewBox="0 0 500 374" class="chart-svg small" role="img" aria-label="Below the line residual chart">
+<text x="130" y="20" class="panel-title">Below the line</text>
+<text x="130" y="40" class="panel-subtitle">Lower income than the simple model predicts</text>
+<line x1="130" y1="54.0" x2="468" y2="54.0" class="mini-grid"/>
+<text x="118" y="59.0" class="mini-label" text-anchor="end">West Virginia</text>
+<rect x="130" y="44.0" width="301.8" height="18" rx="9" fill="#d9643b" opacity="0.9"/>
+<text x="441.8" y="59.0" class="mini-value">-$19.3k</text>
+<line x1="130" y1="92.0" x2="468" y2="92.0" class="mini-grid"/>
+<text x="118" y="97.0" class="mini-label" text-anchor="end">Mississippi</text>
+<rect x="130" y="82.0" width="257.1" height="18" rx="9" fill="#d9643b" opacity="0.9"/>
+<text x="397.1" y="97.0" class="mini-value">-$16.4k</text>
+<line x1="130" y1="130.0" x2="468" y2="130.0" class="mini-grid"/>
+<text x="118" y="135.0" class="mini-label" text-anchor="end">Kentucky</text>
+<rect x="130" y="120.0" width="243.4" height="18" rx="9" fill="#d9643b" opacity="0.9"/>
+<text x="383.4" y="135.0" class="mini-value">-$15.5k</text>
+<line x1="130" y1="168.0" x2="468" y2="168.0" class="mini-grid"/>
+<text x="118" y="173.0" class="mini-label" text-anchor="end">Michigan</text>
+<rect x="130" y="158.0" width="210.8" height="18" rx="9" fill="#d9643b" opacity="0.9"/>
+<text x="350.8" y="173.0" class="mini-value">-$13.5k</text>
+<line x1="130" y1="206.0" x2="468" y2="206.0" class="mini-grid"/>
+<text x="118" y="211.0" class="mini-label" text-anchor="end">Louisiana</text>
+<rect x="130" y="196.0" width="202.5" height="18" rx="9" fill="#d9643b" opacity="0.9"/>
+<text x="342.5" y="211.0" class="mini-value">-$12.9k</text>
+<line x1="130" y1="244.0" x2="468" y2="244.0" class="mini-grid"/>
+<text x="118" y="249.0" class="mini-label" text-anchor="end">Ohio</text>
+<rect x="130" y="234.0" width="188.0" height="18" rx="9" fill="#d9643b" opacity="0.9"/>
+<text x="328.0" y="249.0" class="mini-value">-$12.0k</text>
+<line x1="130" y1="282.0" x2="468" y2="282.0" class="mini-grid"/>
+<text x="118" y="287.0" class="mini-label" text-anchor="end">Arkansas</text>
+<rect x="130" y="272.0" width="177.1" height="18" rx="9" fill="#d9643b" opacity="0.9"/>
+<text x="317.1" y="287.0" class="mini-value">-$11.3k</text>
+<line x1="130" y1="320.0" x2="468" y2="320.0" class="mini-grid"/>
+<text x="118" y="325.0" class="mini-label" text-anchor="end">Alabama</text>
+<rect x="130" y="310.0" width="166.8" height="18" rx="9" fill="#d9643b" opacity="0.9"/>
+<text x="306.8" y="325.0" class="mini-value">-$10.7k</text>
+</svg>
+      </article>
+    </section>
+
+    <section class="section card">
+      <h2>Quadrant view</h2>
+      <p class="deck">
+        States are grouped around the two sample means. This is a quick way to see who clusters in the upper-right,
+        who stays affluent despite lower union density, and who remains in the lower-left corner of both measures.
+      </p>
+      <div class="quadrant-grid">
+        <article class="quadrant-card"><div class="quadrant-header"><span class="swatch" style="background:#ff6b4a"></span><h3>High union / high income</h3><span class="count">15 states</span></div><div class="chip-wrap"><span class="chip" style="--chip-accent: #ff6b4a"><strong>Hawaii</strong><span>26.5% · $100.7k</span></span><span class="chip" style="--chip-accent: #ff6b4a"><strong>New York</strong><span>20.6% · $85.8k</span></span><span class="chip" style="--chip-accent: #ff6b4a"><strong>Alaska</strong><span>17.7% · $95.7k</span></span><span class="chip" style="--chip-accent: #ff6b4a"><strong>Connecticut</strong><span>16.5% · $96.0k</span></span><span class="chip" style="--chip-accent: #ff6b4a"><strong>New Jersey</strong><span>16.2% · $104.3k</span></span><span class="chip" style="--chip-accent: #ff6b4a"><strong>Washington</strong><span>16.0% · $99.4k</span></span><span class="chip" style="--chip-accent: #ff6b4a"><strong>Oregon</strong><span>15.9% · $85.2k</span></span><span class="chip" style="--chip-accent: #ff6b4a"><strong>Massachusetts</strong><span>14.6% · $104.8k</span></span><span class="chip" style="--chip-accent: #ff6b4a"><strong>California</strong><span>14.5% · $100.1k</span></span><span class="chip" style="--chip-accent: #ff6b4a"><strong>Rhode Island</strong><span>14.5% · $83.5k</span></span><span class="chip" style="--chip-accent: #ff6b4a"><strong>Vermont</strong><span>14.3% · $82.7k</span></span><span class="chip" style="--chip-accent: #ff6b4a"><strong>Minnesota</strong><span>14.2% · $87.1k</span></span><span class="chip" style="--chip-accent: #ff6b4a"><strong>Illinois</strong><span>13.1% · $83.2k</span></span><span class="chip" style="--chip-accent: #ff6b4a"><strong>Nevada</strong><span>12.1% · $81.1k</span></span><span class="chip" style="--chip-accent: #ff6b4a"><strong>Maryland</strong><span>11.4% · $102.9k</span></span></div></article>
+<article class="quadrant-card"><div class="quadrant-header"><span class="swatch" style="background:#d4702f"></span><h3>High union / lower income</h3><span class="count">5 states</span></div><div class="chip-wrap"><span class="chip" style="--chip-accent: #d4702f"><strong>Michigan</strong><span>13.4% · $72.4k</span></span><span class="chip" style="--chip-accent: #d4702f"><strong>Maine</strong><span>13.1% · $76.4k</span></span><span class="chip" style="--chip-accent: #d4702f"><strong>Ohio</strong><span>12.1% · $72.2k</span></span><span class="chip" style="--chip-accent: #d4702f"><strong>Montana</strong><span>11.9% · $75.3k</span></span><span class="chip" style="--chip-accent: #d4702f"><strong>Pennsylvania</strong><span>11.7% · $77.5k</span></span></div></article>
+<article class="quadrant-card"><div class="quadrant-header"><span class="swatch" style="background:#17887b"></span><h3>Lower union / high income</h3><span class="count">7 states</span></div><div class="chip-wrap"><span class="chip" style="--chip-accent: #17887b"><strong>New Hampshire</strong><span>9.2% · $99.8k</span></span><span class="chip" style="--chip-accent: #17887b"><strong>Delaware</strong><span>8.5% · $87.5k</span></span><span class="chip" style="--chip-accent: #17887b"><strong>Colorado</strong><span>7.7% · $97.1k</span></span><span class="chip" style="--chip-accent: #17887b"><strong>Virginia</strong><span>5.2% · $92.1k</span></span><span class="chip" style="--chip-accent: #17887b"><strong>Idaho</strong><span>5.0% · $81.2k</span></span><span class="chip" style="--chip-accent: #17887b"><strong>Utah</strong><span>3.7% · $96.7k</span></span><span class="chip" style="--chip-accent: #17887b"><strong>Arizona</strong><span>3.7% · $81.5k</span></span></div></article>
+<article class="quadrant-card"><div class="quadrant-header"><span class="swatch" style="background:#456173"></span><h3>Lower union / lower income</h3><span class="count">23 states</span></div><div class="chip-wrap"><span class="chip" style="--chip-accent: #456173"><strong>Indiana</strong><span>9.0% · $72.0k</span></span><span class="chip" style="--chip-accent: #456173"><strong>Kentucky</strong><span>8.8% · $64.5k</span></span><span class="chip" style="--chip-accent: #456173"><strong>West Virginia</strong><span>8.8% · $60.8k</span></span><span class="chip" style="--chip-accent: #456173"><strong>Missouri</strong><span>8.6% · $71.6k</span></span><span class="chip" style="--chip-accent: #456173"><strong>New Mexico</strong><span>7.5% · $67.8k</span></span><span class="chip" style="--chip-accent: #456173"><strong>Nebraska</strong><span>6.8% · $76.4k</span></span><span class="chip" style="--chip-accent: #456173"><strong>Alabama</strong><span>6.6% · $66.7k</span></span><span class="chip" style="--chip-accent: #456173"><strong>Wisconsin</strong><span>6.4% · $77.5k</span></span><span class="chip" style="--chip-accent: #456173"><strong>Iowa</strong><span>6.4% · $75.5k</span></span><span class="chip" style="--chip-accent: #456173"><strong>Kansas</strong><span>6.3% · $75.5k</span></span><span class="chip" style="--chip-accent: #456173"><strong>Wyoming</strong><span>5.6% · $75.5k</span></span><span class="chip" style="--chip-accent: #456173"><strong>Oklahoma</strong><span>5.3% · $66.1k</span></span><span class="chip" style="--chip-accent: #456173"><strong>Mississippi</strong><span>5.2% · $59.1k</span></span><span class="chip" style="--chip-accent: #456173"><strong>Florida</strong><span>5.1% · $77.7k</span></span><span class="chip" style="--chip-accent: #456173"><strong>North Dakota</strong><span>5.0% · $77.9k</span></span><span class="chip" style="--chip-accent: #456173"><strong>Tennessee</strong><span>4.7% · $72.0k</span></span><span class="chip" style="--chip-accent: #456173"><strong>Texas</strong><span>4.5% · $79.7k</span></span><span class="chip" style="--chip-accent: #456173"><strong>Louisiana</strong><span>3.9% · $61.0k</span></span><span class="chip" style="--chip-accent: #456173"><strong>Georgia</strong><span>3.8% · $80.0k</span></span><span class="chip" style="--chip-accent: #456173"><strong>Arkansas</strong><span>3.5% · $62.1k</span></span><span class="chip" style="--chip-accent: #456173"><strong>South Carolina</strong><span>2.8% · $72.3k</span></span><span class="chip" style="--chip-accent: #456173"><strong>South Dakota</strong><span>2.7% · $76.9k</span></span><span class="chip" style="--chip-accent: #456173"><strong>North Carolina</strong><span>2.4% · $74.0k</span></span></div></article>
+      </div>
+      <p class="footnote">
+        Regression p-value for the slope: <code>0.000052</code>. This is still descriptive, not causal:
+        the chart compares state-level averages and does not control for cost of living, industrial mix, education,
+        housing markets, or regional composition.
+      </p>
+    </section>
+  </main>
+</body>
+</html>

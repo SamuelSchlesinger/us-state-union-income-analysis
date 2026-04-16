@@ -1,0 +1,27 @@
+{
+  "model": "median_household_income_usd ~ union_membership_rate_pct",
+  "n_obs": 50,
+  "degrees_of_freedom": 48,
+  "x_mean": 9.46,
+  "y_mean": 80902.92,
+  "slope": 1256.2962690867187,
+  "intercept": 69018.35729443964,
+  "correlation": 0.5400396942742222,
+  "r_squared": 0.29164287139179534,
+  "rmse": 10317.270617108648,
+  "residual_standard_error": 10530.020229219128,
+  "slope_standard_error": 282.59983439231246,
+  "intercept_standard_error": 3060.173903037027,
+  "slope_t_stat": 4.445495418594957,
+  "intercept_t_stat": 22.553736970942513,
+  "slope_p_value": 5.171505314693903e-05,
+  "intercept_p_value": 9.769962616701378e-15,
+  "slope_95_ci": [
+    688.0912195586986,
+    1824.5013186147387
+  ],
+  "intercept_95_ci": [
+    62865.465280618955,
+    75171.24930826033
+  ]
+}
